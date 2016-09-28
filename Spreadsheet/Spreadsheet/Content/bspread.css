@@ -1,0 +1,10 @@
+﻿.bspread {
+  overflow: hidden;
+}
+.bspread .bspread-cell {
+  border-bottom: 1px solid #666;
+  border-right: 1px solid #666;
+  line-height: 22px;
+  overflow: hidden;
+  padding: 3px;
+}
