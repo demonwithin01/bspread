@@ -637,6 +637,19 @@
 
         public selectCells( startRow: number, startColumn: number, endRow?: number, endColumn?: number )
         {
+            /// <signature>
+            /// <summary>Selects a cell using the provided indices</summary>
+            /// <param name="startRow">The row index</param>
+            /// <param name="startColumn">The column index</param>
+            /// </signature>
+            /// <signature>
+            /// <summary>Selects a cell range using the provided indices</summary>
+            /// <param name="startRow">The start row index</param>
+            /// <param name="startColumn">The start column index</param>
+            /// <param name="endRow">The end row index</param>
+            /// <param name="endColumn">The end column index</param>
+            /// </signature>
+
             if ( endRow == undefined ) endRow = startRow;
             if ( endColumn == undefined ) endColumn = startColumn;
 
