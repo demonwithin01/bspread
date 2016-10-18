@@ -1,17 +1,19 @@
-﻿module BsSpread
+﻿/// <reference path="./../typings/jquery/jquery.d.ts" />
+
+module BsSpread
 {
     export class Spreadsheet
     {
         private _options: Object;
         private _$columnHeaders: JQuery;
         public _$sheetBody: JQuery;
-        private _prefix: String = "bspread";
+        private _prefix: string = "bspread";
         private _isUpdating = false;
         private _container: JQuery;
-        private _columns: ObservableArray;
-        private _rows: ObservableArray;
-        private _dataSource;
-        private _cells;
+        private _columns: ObservableArray<Column>;
+        private _rows: ObservableArray<Row>;
+        private _dataSource: ObservableArray<ObservableDataItem>;
+        private _cells: Array<Array<Cell>>;
         private _marquee: Marquee;
 
         constructor( selector: string, options: Object )
@@ -19,13 +21,13 @@
             var defaults = {
 
             };
-
+            
             this._options = options;
 
             this._container = $( selector );
-            this._columns = new ObservableArray();
-            this._rows = new ObservableArray();
-            this._dataSource = new ObservableArray();
+            this._columns = new ObservableArray<Column>();
+            this._rows = new ObservableArray<Row>();
+            this._dataSource = new ObservableArray<ObservableDataItem>();
             this._cells = [];
 
             //this.columns.addedItem.register( this.columnAdded );
@@ -53,7 +55,7 @@
                 this._columns.push( column );
             }
 
-            var data = [];
+            var data: any[] = [];
 
             for ( var i = 0; i < 22; i++ )
             {
@@ -123,20 +125,19 @@
             this._drawBody.call( this );
         };
 
-        public _cellClicked( cell, e )
+        public _cellClicked( cell: Cell, e: MouseEvent )
         {
-            this._marquee.selectCells( cell.rowIndex, cell.columnIndex );
-            console.log( cell );
+            this._marquee.selectCells( cell.rowIndex, cell.columnIndex, cell.rowIndex, cell.columnIndex );
         }
 
-        private _columnsChanged( sender, column )
+        private _columnsChanged( column: Column )
         {
             console.log( "Columns Changed" );
             if ( this._isUpdating ) return;
 
         }
 
-        private _columnAdded( sender, column )
+        private _columnAdded( column: Column )
         {
             console.log( "Column Added" );
             if ( this._isUpdating ) return;
@@ -147,15 +148,15 @@
         {
             this._cells = [];
 
-            for ( var i = 0; i < this._columns.length; i++ )
+            for ( var i: number = 0; i < this._columns.length; i++ )
             {
                 this._columns[i]._cells = [];
             }
 
-            for ( var i = 0; i < this._dataSource.length; i++ )
+            for ( var i: number = 0; i < this._dataSource.length; i++ )
             {
                 this._cells[i] = [];
-                for ( var j = 0; j < this._columns.length; j++ )
+                for ( var j: number = 0; j < this._columns.length; j++ )
                 {
                     var cell = new Cell( this._dataSource[i][this._columns[j]._key], this, this._rows[i], this.columns[j] );
 
@@ -190,7 +191,7 @@
 
             for ( var i = 0; i < this._columns.length; i++ )
             {
-                var $cell = this.createCell( { top: 0, left: currentPosition }, "Header: " + ( i + 1 ) );
+                var $cell = this.createCell( new Point( currentPosition, 0 ), "Header: " + ( i + 1 ) );
                 $cell.addClass( this._prefix + "-column-header" );
                 this._$columnHeaders.append( $cell );
 
@@ -222,46 +223,30 @@
 
                 currentPositionY += this.rows[y].height;
             }
-
-            //for ( var i = 0; i < this._rows.length; i++ )
-            //{
-            //    var height = this._rows[i].height;
-            //    var currentPositionX = 0;
-
-            //    for ( var j = 0; j < this._columns.length; j++ )
-            //    {
-            //        var $cell = this.createCell( { top: currentPositionY, left: currentPositionX }, this._rows[i].dataItem[this._columns[j]._key] );
-            //        this._$sheetBody.append( $cell );
-
-            //        currentPositionX += this._columns[j].width;
-
-            //        $cell.height( height );
-            //    }
-
-            //    currentPositionY += height;
-            //}
-
+            
             this._$sheetBody.height( currentPositionY );
         };
 
-        private _createObservableDataSource( data ) : ObservableArray
+        private _createObservableDataSource( data: ObservableArray<ObservableDataItem> | Array<any> ): ObservableArray<ObservableDataItem>
         {
+            var observableDataSource: ObservableArray<ObservableDataItem> = new ObservableArray<ObservableDataItem>();
+
             for ( var i = 0; i < data.length; i++ )
             {
-                if ( data[i] instanceof ObservableDataItem )
+                if ( !( data[i] instanceof ObservableDataItem ) )
                 {
-                    continue;
+                    data[i] = new ObservableDataItem( data[i], this );
                 }
 
-                data[i] = new ObservableDataItem( data[i], this );
+                observableDataSource.push( data[i] );
             }
 
-            return data;
+            return observableDataSource;
         }
 
-        private createCell( pos, content )
+        private createCell( pos: Point, content: string )
         {
-            return $( "<div class=\"" + this._prefix + "-cell\" style=\"position: absolute; top: " + pos.top + "px; left: " + pos.left + "px; overflow: hidden; width: 100px;\">" + content + "</div>" );
+            return $( "<div class=\"" + this._prefix + "-cell\" style=\"position: absolute; top: " + pos.y + "px; left: " + pos.x + "px; overflow: hidden; width: 100px;\">" + content + "</div>" );
         };
 
         get container()
@@ -269,31 +254,31 @@
             return this._container;
         }
 
-        get columns(): ObservableArray
+        get columns(): ObservableArray<Column>
         {
             return this._columns;
         }
 
-        get rows(): ObservableArray
+        get rows(): ObservableArray<Row>
         {
             return this._rows;
         }
 
-        get prefix(): String
+        get prefix(): string
         {
             return this._prefix;
         }
 
-        get cells()
+        get cells(): Array<Array<Cell>>
         {
             return this._cells;
         }
 
-        get dataSource(): any[]
+        get dataSource(): ObservableArray<ObservableDataItem> | Array<any>
         {
             return this._dataSource;
         }
-        set dataSource( newSource: any[] )
+        set dataSource( newSource: ObservableArray<ObservableDataItem> | Array<any> )
         {
             this._dataSource = this._createObservableDataSource( newSource );
         }
@@ -304,7 +289,7 @@
         protected _index: number;
         protected _position: number;
 
-        public _cells;
+        public _cells: Array<Cell>;
 
         constructor()
         {
@@ -332,7 +317,7 @@
     export class Column extends RowCol
     {
         private _width: number;
-        public _key: String;
+        public _key: string;
 
         constructor()
         {
@@ -361,7 +346,7 @@
     {
         private _height: number;
 
-        public dataItem;
+        public dataItem: any;
 
         constructor()
         {
@@ -388,14 +373,14 @@
 
     export class Event
     {
-        private _handlers;
+        private _handlers: Array<Function>;
 
         constructor()
         {
             this._handlers = new Array();
         }
 
-        public raise( sender, args )
+        public raise( sender: any, args: any )
         {
             for ( var i = 0; i < this._handlers.length; i++ )
             {
@@ -403,7 +388,7 @@
             }
         }
 
-        public register( fn )
+        public register( fn: Function )
         {
             if ( typeof ( fn ) !== "function" )
             {
@@ -420,13 +405,13 @@
 
     export class Cell
     {
-        private _value;
+        private _value: string | number;
         private _element: Element;
         private _sheet: Spreadsheet;
         private _row: Row;
         private _column: Column;
 
-        constructor( initialValue, sheet: Spreadsheet, row: Row, column: Column )
+        constructor( initialValue: string | number, sheet: Spreadsheet, row: Row, column: Column )
         {
             if ( initialValue == null ) initialValue = undefined;
             this._value = initialValue;
@@ -456,7 +441,7 @@
             this._element.addEventListener( "click", $.proxy( this._cellClicked, this ), true );
         }
 
-        private _cellClicked( e )
+        private _cellClicked( e: MouseEvent )
         {
             this._sheet._cellClicked( this, e );
         }
@@ -493,31 +478,55 @@
             return this._element;
         }
 
+        /**
+         * Gets the row that this cell can be found in.
+         */
         get row(): Row
         {
             return this._row;
         }
 
+        /**
+         * Gets the column that this cell can be found in.
+         */
         get column(): Column
         {
             return this._column;
         }
 
+        /**
+         * Gets the row index for this cell.
+         */
         get rowIndex()
         {
             return this._row.index;
         }
 
+        /**
+         * Gets the column index for this cell.
+         */
         get columnIndex()
         {
             return this._column.index;
         }
     }
 
-    export class ArrayBase 
+
+
+    /**
+     * An array base object used to aid in creating the observable array object.
+     */
+    class ArrayBase 
     {
+
+        /**
+         * Holds the current length of the array.
+         */
         public length: number;
 
+        /**
+         * Creates a new array object.
+         */
         constructor()
         {
             this.length = 0;
@@ -525,12 +534,19 @@
             return new Array();
         }
 
+        /**
+         * Returns the last element of the array, removing it in the procecss.
+         */
         public pop() : any
         {
             return "";
         }
 
-        public push( val ): number
+        /**
+         * Pushes a new value into the array.
+         * @returns {number} The new length of the array.
+         */
+        public push( val: any ): number
         {
             return 0;
         }
@@ -538,11 +554,33 @@
     
     ArrayBase.prototype = new Array();
 
-    export class ObservableArray extends ArrayBase
-    {
-        private _isUpdating: Boolean;
-        private onCollectionChanged;
 
+
+    /**
+     * An observable array that will automatically raise changes when the collection is changed.
+     */
+    export class ObservableArray<T> extends ArrayBase
+    {
+
+        /**
+         * Holds whether or not the collection is currently being updated.
+         * If this value is true, then the collection events should not be raised.
+         */
+        private _isUpdating: Boolean;
+        
+        /**
+         * Holds the event which will be raised when the collection is changed.
+         */
+        private onCollectionChanged: Event;
+
+        /**
+         * Array indexer, created to prevent compiler "errors".
+         */
+        [key: number]: T;
+
+        /**
+         * Creates a new observable array.
+         */
         constructor()
         {
             super();
@@ -556,7 +594,7 @@
          * @param item {any} The object to be added to the array.
          * @returns {Number} The new length of the array.
          */
-        public push( val ): number
+        public push( val: any ): number
         {
             var args = new Array();
             var newLength = this.length;
@@ -568,6 +606,9 @@
             return newLength;
         }
 
+        /**
+         * Pops the last value from the array.
+         */
         public pop()
         {
             var item = super.pop();
@@ -578,16 +619,37 @@
         }
     }
 
+
+
+    /**
+     * An object that creates observable property for each properties on a provided object.
+     */
     class ObservableDataItem
     {
-        private _dataItem;
+        
+        /**
+         * Holds the sheet this data item was created for.
+         */
         private _sheet: Spreadsheet;
 
+        /**
+         * Array indexer, created to prevent compiler "errors".
+         */
+        [key: string]: any;
+
+
+        /**
+         * The event which is raised when the data item is changed.
+         */
         public onDataItemChange: Event;
 
-        constructor( dataItem, sheet: Spreadsheet )
+        /**
+         * Creates a new observable data item.
+         * @param {any} dataItem The data item to base this obvservable off.
+         * @param {Spreadsheet} sheet The sheet that this data item is being created for.
+         */
+        constructor( dataItem: any, sheet: Spreadsheet )
         {
-            this._dataItem = dataItem;
             this._sheet = sheet;
             this.onDataItemChange = new Event();
 
@@ -609,13 +671,35 @@
         }
     }
 
+
+
+    /**
+     * Responsible for managing the marquee that is displayed showing the selected cells.
+     */
     class Marquee
     {
-        private _options;
+
+        /**
+         * Holds any options associated with this marquee.
+         */
+        private _options: any;
+
+        /**
+         * Holds the sheet this marquee is attached to.
+         */
         private _sheet: Spreadsheet;
+
+        /**
+         * Holds the marquee HTML element.
+         */
         private _element: HTMLElement;
 
-        constructor( sheet: Spreadsheet, options? )
+        /**
+         * Creates a new Marquee object on the specified spreadsheet.
+         * @param {Spreadsheet} sheet The left position of the rectangle.
+         * @param {any} options The top position of the rectangle.
+         */
+        constructor( sheet: Spreadsheet, options?: any )
         {
             var defaults = {
                 borderWidth: 2,
@@ -635,35 +719,156 @@
             this._sheet.container.append( $( this._element ) );
         }
 
+        /**
+         * Selects a cell range using the provided indices.
+         * @param {number} startRow The start row index
+         * @param {number} startColumn The start column index
+         * @param {number} endRow The end row index
+         * @param {number} endColumn The end column index
+         */
         public selectCells( startRow: number, startColumn: number, endRow?: number, endColumn?: number )
         {
-            /// <signature>
-            /// <summary>Selects a cell using the provided indices</summary>
-            /// <param name="startRow">The row index</param>
-            /// <param name="startColumn">The column index</param>
-            /// </signature>
-            /// <signature>
-            /// <summary>Selects a cell range using the provided indices</summary>
-            /// <param name="startRow">The start row index</param>
-            /// <param name="startColumn">The start column index</param>
-            /// <param name="endRow">The end row index</param>
-            /// <param name="endColumn">The end column index</param>
-            /// </signature>
-
             if ( endRow == undefined ) endRow = startRow;
             if ( endColumn == undefined ) endColumn = startColumn;
 
-            var startCell = this._sheet.cells[startRow][startColumn];
-            var endCell = this._sheet.cells[endRow][endColumn];
-
+            var startCell: Cell = this._sheet.cells[startRow][startColumn];
+            var endCell: Cell = this._sheet.cells[endRow][endColumn];
+            
             var topOffset = parseInt( this._sheet._$sheetBody.get( 0 ).style.top );
 
             var spacing = this._options.borderWidth / 2;
+
+            var rowCount = Math.abs( endCell.rowIndex - startCell.rowIndex ) + 1;
+            var colCount = Math.abs( endCell.columnIndex - startCell.columnIndex ) + 1;
             
             this._element.style.top = ( topOffset + startCell.row.position - spacing - 1 ) + "px";
             this._element.style.left = ( startCell.column.position - spacing - 1 ) + "px";
-            this._element.style.height = ( endCell.row.height + this._options.borderWidth + 1 ) + "px";
-            this._element.style.width = ( endCell.column.width + this._options.borderWidth + 1 ) + "px";
+            this._element.style.height = ( endCell.row.height * rowCount + this._options.borderWidth + 1 ) + "px";
+            this._element.style.width = ( endCell.column.width * colCount + this._options.borderWidth + 1 ) + "px";
+        }
+    }
+
+
+
+    /**
+     * A two dimensional point.
+     */
+    export class Point
+    {
+        /**
+         * Holds the x co-ordinate.
+         */
+        private _x: number;
+
+        /**
+         * Holds the y co-ordinate.
+         */
+        private _y: number;
+
+        /**
+         * Pushes a new value into the array.
+         * 
+         * @param x {number} The x co-ordinate of the point.
+         * @param y {number} The y co-ordinate of the point.
+         */
+        constructor( x: number, y: number )
+        {
+            this._x = x;
+            this._y = y;
+        }
+
+        /**
+         * Gets the X co-ordinate of the point.
+         */
+        get x(): number
+        {
+            return this._x;
+        }
+
+        /**
+         * Gets the Y co-ordinate of the point.
+         */
+        get y(): number
+        {
+            return this._y;
+        }
+    }
+
+
+
+    /**
+     * The position and dimensions of a rectangle.
+     */
+    export class Rect
+    {
+        /**
+         * Holds the top left position of the rectangle.
+         */
+        private _position: Point;
+        /**
+         * Holds the dimensions of the rectangle.
+         */
+        private _dimensions: Point;
+
+        /**
+         * Creates a new Rect object with the specified position and dimensions.
+         * @param {number} x The left position of the rectangle.
+         * @param {number} y The top position of the rectangle.
+         * @param {number} width The width of the rectangle.
+         * @param {number} height The height of the rectangle.
+         */
+        constructor( x: number, y: number, width: number, height: number )
+        {
+            this._position = new Point( x, y );
+            this._dimensions = new Point( width, height );
+        }
+
+        /**
+         * Gets the top of the rectangle.
+         */
+        get top(): number
+        {
+            return this._position.y;
+        }
+
+        /**
+         * Gets the left of the rectangle.
+         */
+        get left(): number
+        {
+            return this._position.x;
+        }
+
+        /**
+         * Gets the width of the rectangle.
+         */
+        get width(): number
+        {
+            return this._dimensions.x;
+        }
+
+        /**
+         * Gets the height of the rectangle.
+         */
+        get height(): number
+        {
+            return this._dimensions.y;
+        }
+
+        /**
+         * Gets the bottom of the rectangle.
+         */
+        get bottom(): number
+        {
+            return ( this._position.y + this._dimensions.y );
+        }
+
+        /**
+         * Gets the right of the rectangle.
+         */
+        get right(): number
+        {
+            return ( this._position.x + this._dimensions.x );
         }
     }
 }

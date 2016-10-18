@@ -90,7 +90,8 @@ var BsSpread;
         };
         ;
         Spreadsheet.prototype._cellClicked = function (cell, e) {
-            this._marquee.selectCells(cell.rowIndex, cell.columnIndex, cell.rowIndex, cell.columnIndex);
+            this._marquee.selectCells(cell.rowIndex, cell.columnIndex);
+            console.log(cell);
         };
         Spreadsheet.prototype._columnsChanged = function (column) {
             console.log("Columns Changed");
@@ -167,7 +168,7 @@ var BsSpread;
             return observableDataSource;
         };
         Spreadsheet.prototype.createCell = function (pos, content) {
-            return $("<div class=\"" + this._prefix + "-cell\" style=\"position: absolute; top: " + pos.y + "px; left: " + pos.x + "px; overflow: hidden; width: 100px;\">" + content + "</div>");
+            return $("<div class=\"" + this._prefix + "-cell\" style=\"position: absolute; top: " + pos.Y + "px; left: " + pos.X + "px; overflow: hidden; width: 100px;\">" + content + "</div>");
         };
         ;
         Object.defineProperty(Spreadsheet.prototype, "container", {
@@ -379,9 +380,6 @@ var BsSpread;
             configurable: true
         });
         Object.defineProperty(Cell.prototype, "row", {
-            /**
-             * Gets the row that this cell can be found in.
-             */
             get: function () {
                 return this._row;
             },
@@ -389,9 +387,6 @@ var BsSpread;
             configurable: true
         });
         Object.defineProperty(Cell.prototype, "column", {
-            /**
-             * Gets the column that this cell can be found in.
-             */
             get: function () {
                 return this._column;
             },
@@ -399,9 +394,6 @@ var BsSpread;
             configurable: true
         });
         Object.defineProperty(Cell.prototype, "rowIndex", {
-            /**
-             * Gets the row index for this cell.
-             */
             get: function () {
                 return this._row.index;
             },
@@ -409,9 +401,6 @@ var BsSpread;
             configurable: true
         });
         Object.defineProperty(Cell.prototype, "columnIndex", {
-            /**
-             * Gets the column index for this cell.
-             */
             get: function () {
                 return this._column.index;
             },
@@ -421,42 +410,24 @@ var BsSpread;
         return Cell;
     }());
     BsSpread.Cell = Cell;
-    /**
-     * An array base object used to aid in creating the observable array object.
-     */
     var ArrayBase = (function () {
-        /**
-         * Creates a new array object.
-         */
         function ArrayBase() {
             this.length = 0;
             Array.apply(this, arguments);
             return new Array();
         }
-        /**
-         * Returns the last element of the array, removing it in the procecss.
-         */
         ArrayBase.prototype.pop = function () {
             return "";
         };
-        /**
-         * Pushes a new value into the array.
-         * @returns {number} The new length of the array.
-         */
         ArrayBase.prototype.push = function (val) {
             return 0;
         };
         return ArrayBase;
     }());
+    BsSpread.ArrayBase = ArrayBase;
     ArrayBase.prototype = new Array();
-    /**
-     * An observable array that will automatically raise changes when the collection is changed.
-     */
     var ObservableArray = (function (_super) {
         __extends(ObservableArray, _super);
-        /**
-         * Creates a new observable array.
-         */
         function ObservableArray() {
             _super.call(this);
             this._isUpdating = false;
@@ -476,9 +447,6 @@ var BsSpread;
             }
             return newLength;
         };
-        /**
-         * Pops the last value from the array.
-         */
         ObservableArray.prototype.pop = function () {
             var item = _super.prototype.pop.call(this);
             // raise pop event
@@ -487,16 +455,9 @@ var BsSpread;
         return ObservableArray;
     }(ArrayBase));
     BsSpread.ObservableArray = ObservableArray;
-    /**
-     * An object that creates observable property for each properties on a provided object.
-     */
     var ObservableDataItem = (function () {
-        /**
-         * Creates a new observable data item.
-         * @param {any} dataItem The data item to base this obvservable off.
-         * @param {Spreadsheet} sheet The sheet that this data item is being created for.
-         */
         function ObservableDataItem(dataItem, sheet) {
+            this._dataItem = dataItem;
             this._sheet = sheet;
             this.onDataItemChange = new Event();
             for (var idx in dataItem) {
@@ -506,6 +467,7 @@ var BsSpread;
                     },
                     set: function (value) {
                         this._dataItem[idx] = value;
+                        console.log("data changed");
                     },
                     enumerable: !0,
                     configurable: !1
@@ -518,11 +480,6 @@ var BsSpread;
      * Responsible for managing the marquee that is displayed showing the selected cells.
      */
     var Marquee = (function () {
-        /**
-         * Creates a new Marquee object on the specified spreadsheet.
-         * @param {Spreadsheet} sheet The left position of the rectangle.
-         * @param {any} options The top position of the rectangle.
-         */
         function Marquee(sheet, options) {
             var defaults = {
                 borderWidth: 2,
@@ -554,43 +511,26 @@ var BsSpread;
             var endCell = this._sheet.cells[endRow][endColumn];
             var topOffset = parseInt(this._sheet._$sheetBody.get(0).style.top);
             var spacing = this._options.borderWidth / 2;
-            var rowCount = Math.abs(endCell.rowIndex - startCell.rowIndex) + 1;
-            var colCount = Math.abs(endCell.columnIndex - startCell.columnIndex) + 1;
             this._element.style.top = (topOffset + startCell.row.position - spacing - 1) + "px";
             this._element.style.left = (startCell.column.position - spacing - 1) + "px";
-            this._element.style.height = (endCell.row.height * rowCount + this._options.borderWidth + 1) + "px";
-            this._element.style.width = (endCell.column.width * colCount + this._options.borderWidth + 1) + "px";
+            this._element.style.height = (endCell.row.height + this._options.borderWidth + 1) + "px";
+            this._element.style.width = (endCell.column.width + this._options.borderWidth + 1) + "px";
         };
         return Marquee;
     }());
-    /**
-     * A two dimensional point.
-     */
     var Point = (function () {
-        /**
-         * Pushes a new value into the array.
-         *
-         * @param x {number} The x co-ordinate of the point.
-         * @param y {number} The y co-ordinate of the point.
-         */
         function Point(x, y) {
             this._x = x;
             this._y = y;
         }
-        Object.defineProperty(Point.prototype, "x", {
-            /**
-             * Gets the X co-ordinate of the point.
-             */
+        Object.defineProperty(Point.prototype, "X", {
             get: function () {
                 return this._x;
             },
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Point.prototype, "y", {
-            /**
-             * Gets the Y co-ordinate of the point.
-             */
+        Object.defineProperty(Point.prototype, "Y", {
             get: function () {
                 return this._y;
             },
@@ -600,83 +540,5 @@ var BsSpread;
         return Point;
     }());
     BsSpread.Point = Point;
-    /**
-     * The position and dimensions of a rectangle.
-     */
-    var Rect = (function () {
-        /**
-         * Creates a new Rect object with the specified position and dimensions.
-         * @param {number} x The left position of the rectangle.
-         * @param {number} y The top position of the rectangle.
-         * @param {number} width The width of the rectangle.
-         * @param {number} height The height of the rectangle.
-         */
-        function Rect(x, y, width, height) {
-            this._position = new Point(x, y);
-            this._dimensions = new Point(width, height);
-        }
-        Object.defineProperty(Rect.prototype, "top", {
-            /**
-             * Gets the top of the rectangle.
-             */
-            get: function () {
-                return this._position.y;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Rect.prototype, "left", {
-            /**
-             * Gets the left of the rectangle.
-             */
-            get: function () {
-                return this._position.x;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Rect.prototype, "width", {
-            /**
-             * Gets the width of the rectangle.
-             */
-            get: function () {
-                return this._dimensions.x;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Rect.prototype, "height", {
-            /**
-             * Gets the height of the rectangle.
-             */
-            get: function () {
-                return this._dimensions.y;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Rect.prototype, "bottom", {
-            /**
-             * Gets the bottom of the rectangle.
-             */
-            get: function () {
-                return (this._position.y + this._dimensions.y);
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Rect.prototype, "right", {
-            /**
-             * Gets the right of the rectangle.
-             */
-            get: function () {
-                return (this._position.x + this._dimensions.x);
-            },
-            enumerable: true,
-            configurable: true
-        });
-        return Rect;
-    }());
-    BsSpread.Rect = Rect;
 })(BsSpread || (BsSpread = {}));
 //# sourceMappingURL=spreadsheet.js.map
