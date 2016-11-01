@@ -2,10 +2,31 @@
 
 module BsSpread
 {
+    /**
+     * Holds a group of helper functions.
+     */
+    export class Helpers
+    {
+        /**
+         * Creates a proxy event handler.
+         * @param callback The callback method to call.
+         * @param self The object to call the callback against.
+         */
+        public proxy( callback: Function, self: Object ): EventListener
+        {
+            return function ( evt: Event ): void
+            {
+                callback.apply( self, evt );
+            };
+        }
+    }
+
     export class Spreadsheet
     {
         private _options: Object;
         private _$columnHeaders: JQuery;
+        private _$sheet: JQuery;
+        private _toolsElement: JQuery;
         public _$sheetBody: JQuery;
         private _prefix: string = "bspread";
         private _isUpdating = false;
@@ -15,6 +36,8 @@ module BsSpread
         private _dataSource: ObservableArray<ObservableDataItem>;
         private _cells: Array<Array<Cell>>;
         private _marquee: Marquee;
+
+        private _bodyDimensions: Point;
 
         constructor( selector: string, options: Object )
         {
@@ -33,11 +56,19 @@ module BsSpread
             //this.columns.addedItem.register( this.columnAdded );
             //this.columns.arrayChanged.register( this.columnsChanged );
 
+            this._$sheet = $( "<div class=\"" + this._prefix + "-sheet\" style=\"margin: 2px;\"></div>" );
+            this._toolsElement = $( "<div class=\"" + this._prefix + "-tools\" style=\"position: absolute; top: 2px; right: 2px; bottom: 2px; left: 2px; pointer-events: none;\"></div>" );
+
             this._$columnHeaders = $( "<div class=\"" + this._prefix + "-column-headers\"></div>" );
             this._$sheetBody = $( "<div class=\"" + this._prefix + "-sheet-body\"></div>" );
 
-            this._container.append( this._$columnHeaders );
-            this._container.append( this._$sheetBody );
+            this._$sheet.append( this._$columnHeaders );
+            this._$sheet.append( this._$sheetBody );
+
+            this._container.append( this._$sheet );
+            this._container.append( this._toolsElement );
+
+            this._container.css( { position: "relative" } );
 
             this._marquee = new Marquee( this );
 
@@ -87,6 +118,9 @@ module BsSpread
             
             this._createRowData();
 
+            window.addEventListener( "resize", _helpers.proxy( this._onResize, this ) );
+            this._$sheet[0].addEventListener( "scroll", _helpers.proxy( this._onResize, this ) );
+
             this.endUpdate();
         }
         
@@ -119,7 +153,7 @@ module BsSpread
 
         public redraw()
         {
-            this._container.css( { display: "block", overflow: "scroll", width: "100%", height: "200px", position: "relative" });
+            this._$sheet.css( { display: "block", overflow: "scroll", width: "100%", height: "200px", position: "relative" });
 
             this._drawHeaders.call( this );
             this._drawBody.call( this );
@@ -210,6 +244,8 @@ module BsSpread
 
         private _drawBody()
         {
+            this._bodyDimensions = new Point( 0, this._$columnHeaders.height() );
+
             this._$sheetBody.empty().css( { position: "absolute", top: this._$columnHeaders.height(), left: "0", width: "100%" });
 
             var currentPositionY = 0;
@@ -249,9 +285,34 @@ module BsSpread
             return $( "<div class=\"" + this._prefix + "-cell\" style=\"position: absolute; top: " + pos.y + "px; left: " + pos.x + "px; overflow: hidden; width: 100px;\">" + content + "</div>" );
         };
 
+        private _onResize(): void
+        {
+            this._marquee.recalculatePosition();
+        }
+
         get container()
         {
             return this._container;
+        }
+
+        get sheetContainer()
+        {
+            return this._$sheet;
+        }
+
+        get toolsContainer(): JQuery
+        {
+            return this._toolsElement;
+        }
+
+        get bodyContainer(): JQuery
+        {
+            return this._$sheetBody;
+        }
+
+        get bodyDimensions(): Point
+        {
+            return this._bodyDimensions;
         }
 
         get columns(): ObservableArray<Column>
@@ -284,9 +345,19 @@ module BsSpread
         }
     }
 
+    /**
+     * Provides common functionality to both the Column and Row classes.
+     */
     class RowCol
     {
+        /**
+         * Holds the current index of the row/column.
+         */
         protected _index: number;
+        
+        /**
+         * Holds the current position of the row/column.
+         */
         protected _position: number;
 
         public _cells: Array<Cell>;
@@ -326,6 +397,7 @@ module BsSpread
             this._width = 100;
         }
 
+        
         get index(): number
         {
             return this._index;
@@ -336,6 +408,9 @@ module BsSpread
             this._position = this._index * this._width;
         }
 
+        /**
+         * Gets the width of the column.
+         */
         get width(): number
         {
             return this._width;
@@ -365,13 +440,16 @@ module BsSpread
             this._position = this._index * this._height;
         }
 
+        /**
+         * Gets the height of the row.
+         */
         get height(): number
         {
             return this._height;
         }
     }
 
-    export class Event
+    export class BspreadEvent
     {
         private _handlers: Array<Function>;
 
@@ -422,12 +500,7 @@ module BsSpread
 
             this.recreateElement();
         }
-
-        public getDisplayValue()
-        {
-            return this._value;
-        }
-
+        
         public recreateElement()
         {
             var newElement = $( "<div class=\"" + this._sheet.prefix + "-cell\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>" );
@@ -438,7 +511,7 @@ module BsSpread
             }
             
             this._element = newElement.get( 0 );
-            this._element.addEventListener( "click", $.proxy( this._cellClicked, this ), true );
+            this._element.addEventListener( "click", _helpers.proxy( this._cellClicked, this ), true );
         }
 
         private _cellClicked( e: MouseEvent )
@@ -571,7 +644,7 @@ module BsSpread
         /**
          * Holds the event which will be raised when the collection is changed.
          */
-        private onCollectionChanged: Event;
+        private onCollectionChanged: BspreadEvent;
 
         /**
          * Array indexer, created to prevent compiler "errors".
@@ -585,7 +658,7 @@ module BsSpread
         {
             super();
             this._isUpdating = false;
-            this.onCollectionChanged = new Event();
+            this.onCollectionChanged = new BspreadEvent();
         }
 
         /**
@@ -633,6 +706,11 @@ module BsSpread
         private _sheet: Spreadsheet;
 
         /**
+         * Holds the data item details.
+         */
+        private _dataItem: any;
+
+        /**
          * Array indexer, created to prevent compiler "errors".
          */
         [key: string]: any;
@@ -641,7 +719,7 @@ module BsSpread
         /**
          * The event which is raised when the data item is changed.
          */
-        public onDataItemChange: Event;
+        public onDataItemChange: BspreadEvent;
 
         /**
          * Creates a new observable data item.
@@ -651,8 +729,9 @@ module BsSpread
         constructor( dataItem: any, sheet: Spreadsheet )
         {
             this._sheet = sheet;
-            this.onDataItemChange = new Event();
-
+            this.onDataItemChange = new BspreadEvent();
+            this._dataItem = dataItem;
+            
             for ( var idx in dataItem )
             {
                 Object.defineProperty( this, idx, {
@@ -685,9 +764,24 @@ module BsSpread
         private _options: any;
 
         /**
+         * Holds the cell which is used as the start index.
+         */
+        private _startCell: Cell;
+
+        /**
+         * Holds the cell which is used as the end index.
+         */
+        private _endCell: Cell;
+
+        /**
          * Holds the sheet this marquee is attached to.
          */
         private _sheet: Spreadsheet;
+
+        /**
+         * Holds whether or not the marquee is currently visible.
+         */
+        private _isVisible: Boolean;
 
         /**
          * Holds the marquee HTML element.
@@ -708,6 +802,7 @@ module BsSpread
             this._options = $.extend( {}, defaults, options );
 
             this._sheet = sheet;
+            this._isVisible = false;
 
             this._element = document.createElement( "div" );
             this._element.classList.add( this._sheet.prefix + "-marquee" );
@@ -715,8 +810,9 @@ module BsSpread
             this._element.style.borderWidth = this._options.borderWidth + "px";
             this._element.style.borderColor = this._options.borderColor;
             this._element.style.borderStyle = "solid";
+            this._element.style.display = "none";
 
-            this._sheet.container.append( $( this._element ) );
+            this._sheet.toolsContainer.append( $( this._element ) );
         }
 
         /**
@@ -731,20 +827,114 @@ module BsSpread
             if ( endRow == undefined ) endRow = startRow;
             if ( endColumn == undefined ) endColumn = startColumn;
 
-            var startCell: Cell = this._sheet.cells[startRow][startColumn];
-            var endCell: Cell = this._sheet.cells[endRow][endColumn];
+            this._startCell = this._sheet.cells[startRow][startColumn];
+            this._endCell = this._sheet.cells[endRow][endColumn];
             
-            var topOffset = parseInt( this._sheet._$sheetBody.get( 0 ).style.top );
+            this.recalculatePosition();
+        }
 
+        /**
+         * Recalculates the position of the marquee.
+         */
+        public recalculatePosition()
+        {
             var spacing = this._options.borderWidth / 2;
 
-            var rowCount = Math.abs( endCell.rowIndex - startCell.rowIndex ) + 1;
-            var colCount = Math.abs( endCell.columnIndex - startCell.columnIndex ) + 1;
+            var topOffset = parseInt( this._sheet._$sheetBody.get( 0 ).style.top );
+
+            var top = topOffset + this._startCell.row.position - spacing - 1 - this._sheet.sheetContainer[0].scrollTop;
+            var left = this._startCell.column.position - spacing - 1 - this._sheet.sheetContainer[0].scrollLeft;
+
+            var bodyTop = this._sheet.bodyDimensions.y;
+            var bodyLeft = this._sheet.bodyDimensions.x;
+
+            var rowHeight = 0, columnWidth = 0;
+            for ( var i = this._startCell.rowIndex; i <= this._endCell.rowIndex; i++ )
+            {
+                rowHeight += this._sheet.rows[i].height;
+            }
+            for ( var i = this._startCell.columnIndex; i <= this._endCell.columnIndex; i++ )
+            {
+                columnWidth += this._sheet.columns[i].width;
+            }
+
+            if ( this._startCell.row.position + bodyTop < this._sheet.sheetContainer[0].scrollTop )
+            {
+                var difference = this._startCell.row.position + bodyTop - this._sheet.sheetContainer[0].scrollTop;
+                rowHeight += difference;
+                top = -spacing - 1;
+            }
+            if ( this._startCell.column.position + bodyLeft < this._sheet.sheetContainer[0].scrollLeft )
+            {
+                var difference = this._startCell.column.position + bodyLeft - this._sheet.sheetContainer[0].scrollLeft;
+                columnWidth += difference;
+                left = -spacing - 1;
+            }
             
-            this._element.style.top = ( topOffset + startCell.row.position - spacing - 1 ) + "px";
-            this._element.style.left = ( startCell.column.position - spacing - 1 ) + "px";
-            this._element.style.height = ( endCell.row.height * rowCount + this._options.borderWidth + 1 ) + "px";
-            this._element.style.width = ( endCell.column.width * colCount + this._options.borderWidth + 1 ) + "px";
+            this._element.style.top = top + "px";
+            this._element.style.left = left + "px";
+
+            this._element.style.height = ( rowHeight + this._options.borderWidth + 1 ) + "px";
+            this._element.style.width = ( columnWidth + this._options.borderWidth + 1 ) + "px";
+
+            if ( columnWidth <= 0 || rowHeight <= 0 )
+            {
+                this._isVisible = false;
+                this._element.style.display = "none";
+            }
+            else
+            {
+                this._isVisible = true;
+                this._element.style.display = "block";
+            }
+        }
+
+        /**
+         * Gets whether or not the marquee currently has a selection, multiple or single.
+         */
+        private _hasSelection(): Boolean
+        {
+            if ( this._isVisible == false ) return false;
+
+            if ( this._startCell == undefined || this._endCell == undefined ) return false;
+
+            return true;
+        }
+
+        /**
+         * Gets whether or not the marquee is currently visible.
+         */
+        get isVisible(): Boolean
+        {
+            return this._isVisible;
+        }
+
+        /**
+         * Gets whether or not there is currently a single cell selected.
+         * Returns false if the marquee is not visible.
+         */
+        get hasSingleCellSelected(): Boolean
+        {
+            if ( this._hasSelection() )
+            {
+                return ( this._startCell.columnIndex == this._endCell.columnIndex && this._startCell.rowIndex == this._endCell.rowIndex );
+            }
+
+            return false;
+        }
+
+        /**
+         * Gets whether or not there are currently multiple cells selected.
+         * Returns false if the marquee is not visible.
+         */
+        get hasMultipleCellsSelected()
+        {
+            if ( this._hasSelection() )
+            {
+                return ( this._startCell.columnIndex != this._endCell.columnIndex || this._startCell.rowIndex != this._endCell.rowIndex );
+            }
+
+            return false;
         }
     }
 
@@ -871,4 +1061,9 @@ module BsSpread
             return ( this._position.x + this._dimensions.x );
         }
     }
+
+    /**
+     * Holds a group of helper functions.
+     */
+    export var _helpers = new Helpers();
 }
