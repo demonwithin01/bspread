@@ -19,6 +19,67 @@ module BsSpread
                 callback.apply( self, evt );
             };
         }
+
+        /**
+         * Adds an event listener to the specified element.
+         * @param element
+         * @param type
+         * @param listener
+         */
+        public addEventListener( element: Element | string, type: string, listener: EventListener | EventListenerObject )
+        {
+            var htmlElement: Element;
+
+            if ( typeof ( element ) === 'string' )
+            {
+                htmlElement = this._resolveElement( element as string );
+            }
+            else
+            {
+                htmlElement = element as Element;
+            }
+
+            htmlElement.addEventListener( type, listener );
+        }
+
+        /**
+         * Resolves a selector string into a html element.
+         * @param selector
+         */
+        private _resolveElement( selector: string ): Element
+        {
+            var htmlElement: Element;
+            //var elements: NodeListOf<Element>;
+
+            if ( selector.indexOf( '#' ) == 0 )
+            {
+                htmlElement = document.getElementById( selector );
+            }
+            else if ( selector.indexOf( '.' ) == 0 )
+            {
+                var elements = document.getElementsByClassName( selector );
+
+                if ( elements.length == 0 )
+                {
+                    return undefined;
+                }
+
+                htmlElement = elements.item( 0 );
+            }
+            else
+            {
+                var elements = document.getElementsByTagName( selector );
+
+                if ( elements.length == 0 )
+                {
+                    return undefined;
+                }
+
+                htmlElement = elements.item( 0 );
+            }
+
+            return htmlElement;
+        }
     }
 
     export class Spreadsheet
@@ -1060,6 +1121,11 @@ module BsSpread
         {
             return ( this._position.x + this._dimensions.x );
         }
+    }
+
+    class KeyDispatcher
+    {
+
     }
 
     /**

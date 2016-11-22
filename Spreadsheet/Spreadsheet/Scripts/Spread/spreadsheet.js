@@ -22,6 +22,48 @@ var BsSpread;
                 callback.apply(self, evt);
             };
         };
+        /**
+         * Adds an event listener to the specified element.
+         * @param element
+         * @param type
+         * @param listener
+         */
+        Helpers.prototype.addEventListener = function (element, type, listener) {
+            var htmlElement;
+            if (typeof (element) === 'string') {
+                htmlElement = this._resolveElement(element);
+            }
+            else {
+                htmlElement = element;
+            }
+            htmlElement.addEventListener(type, listener);
+        };
+        /**
+         * Resolves a selector string into a html element.
+         * @param selector
+         */
+        Helpers.prototype._resolveElement = function (selector) {
+            var htmlElement;
+            //var elements: NodeListOf<Element>;
+            if (selector.indexOf('#') == 0) {
+                htmlElement = document.getElementById(selector);
+            }
+            else if (selector.indexOf('.') == 0) {
+                var elements = document.getElementsByClassName(selector);
+                if (elements.length == 0) {
+                    return undefined;
+                }
+                htmlElement = elements.item(0);
+            }
+            else {
+                var elements = document.getElementsByTagName(selector);
+                if (elements.length == 0) {
+                    return undefined;
+                }
+                htmlElement = elements.item(0);
+            }
+            return htmlElement;
+        };
         return Helpers;
     }());
     BsSpread.Helpers = Helpers;
@@ -826,6 +868,11 @@ var BsSpread;
         return Rect;
     }());
     BsSpread.Rect = Rect;
+    var KeyDispatcher = (function () {
+        function KeyDispatcher() {
+        }
+        return KeyDispatcher;
+    }());
     /**
      * Holds a group of helper functions.
      */
