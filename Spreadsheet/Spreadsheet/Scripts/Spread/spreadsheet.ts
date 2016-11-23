@@ -19,35 +19,223 @@ module BsSpread
                 callback.apply( self, [ evt ] );
             };
         }
+
+        /**
+         * Adds an event listener to the specified element.
+         * @param element The element, elements, or selector for adding the event listener to.
+         * @param type The event type to attach.
+         * @param listener The callback/listener for the event.
+         */
+        public addEventListener( element: Array<Element> | Element | string, type: string, listener: EventListener | EventListenerObject )
+        {
+            var htmlElement: Element;
+
+            if ( typeof ( element ) === 'string' )
+            {
+                var htmlElements = this._resolveElement( element as string );
+
+                htmlElements.forEach( function ( value ) { value.addEventListener( type, listener ); } );
+            }
+            else if ( this.isArray( element ) )
+            {
+                var htmlElements = element as Array<Element>;
+
+                htmlElements.forEach( function ( value ) { value.addEventListener( type, listener ); });   
+            }
+            else
+            {
+                ( element as Element ).addEventListener( type, listener );
+            }
+        }
+
+        /**
+         * Determines whether or not the provided object is an array.
+         * @param obj The object to be checked.
+         */
+        public isArray( obj: any )
+        {
+            return obj.constructor === Array;
+        }
+
+        /**
+         * Simple foreach loop for arrays.
+         * @param array The array to loop over.
+         * @param callback The callback method for each item.
+         */
+        public forEach( array: Array<any>, callback: Function )
+        {
+            if ( !array ) return;
+
+            for ( var i = 0; i < array.length; i++ )
+            {
+                var item = array[i];
+                callback.call( item, i, item );
+            }
+        }
+
+        /**
+         * Finds the element using the provided selector. Does not support advanced search methods such as descendents.
+         * @param selector Supports tags, ids, and class selectors.
+         * @returns {Element} The first element found using the provided selector.
+         */
+        public findElement( selector: string ): Element
+        {
+            var elements = this._resolveElement( selector );
+
+            if ( elements.length == 0 )
+            {
+                throw "Element not found using selector: '" + selector + "'";
+            }
+
+            return elements[0];
+        }
+
+        /**
+         * Resolves a selector string into an array of html elements. Does not support advanced search methods such as descendents.
+         * @param selector Supports tags, ids, and class selectors.
+         */
+        private _resolveElement( selector: string ): Array<Element>
+        {
+            var htmlElements: Array<Element> = [];
+            
+            if ( selector.indexOf( '#' ) == 0 )
+            {
+                var htmlElement = document.getElementById( selector );
+                
+                htmlElements.push( htmlElement );
+            }
+            else if ( selector.indexOf( '.' ) == 0 )
+            {
+                var elements = document.getElementsByClassName( selector );
+
+                for ( var i = 0; i < elements.length; i++ )
+                {
+                    htmlElements.push( elements[i] );
+                }
+            }
+            else
+            {
+                var elements = document.getElementsByTagName( selector );
+                
+                for ( var i = 0; i < elements.length; i++ )
+                {
+                    htmlElements.push( elements[i] );
+                }
+            }
+
+            return htmlElements;
+        }
+    }
+
+    export class Workbook
+    {
+        private _prefix: string = "bspread";
+        private _container: JQuery;
+        private _marquee: Marquee;
+        private _toolsElement: JQuery;
+        private _sheets: Array<Spreadsheet>;
+        private _options: Object;
+        private _keyHandler: KeyHandler;
+
+        constructor( selector: string, options: Object )
+        {
+            this._options = options;
+            this._container = $( selector );
+            this._keyHandler = new KeyHandler( this );
+            
+            this._container.css( { position: "relative" });
+
+            this._sheets = [];
+
+            this._toolsElement = $( "<div class=\"" + this._prefix + "-tools\" style=\"position: absolute; top: 2px; right: 2px; bottom: 2px; left: 2px; pointer-events: none;\"></div>" );
+            this._container.append( this._toolsElement );
+
+            this._marquee = new Marquee( this );
+            
+            this._sheets.push( new Spreadsheet( this, 0, options ) ); // TEMP
+
+            window.addEventListener( "resize", _helpers.proxy( this._onResize, this ) );
+            window.addEventListener( "keydown", _helpers.proxy( this._keyHandler.onKeyDown, this._keyHandler ) );
+        }
+
+        private _onResize(): void
+        {
+            this._marquee.recalculatePosition();
+        }
+
+        /**
+         * Gets the main container for the spreadsheets.
+         */
+        get container()
+        {
+            return this._container;
+        }
+
+        /**
+         * Gets the class prefix for the spreadsheets.
+         */
+        get prefix(): string
+        {
+            return this._prefix;
+        }
+
+        /**
+         * Gets the marquee.
+         */
+        get marquee(): Marquee
+        {
+            return this._marquee;
+        }
+
+        /**
+         * Gets the currently selected sheet.
+         */
+        get selectedSheet(): Spreadsheet
+        {
+            return this._sheets[0]; // TEMP
+        }
+
+        /**
+         * Gets the html container for the tools.
+         */
+        get toolsContainer(): JQuery
+        {
+            return this._toolsElement;
+        }
     }
 
     export class Spreadsheet
     {
+        private _workbook: Workbook;
         private _options: Object;
         private _$columnHeaders: JQuery;
         private _$sheet: JQuery;
-        private _toolsElement: JQuery;
-        public _$sheetBody: JQuery;
-        private _prefix: string = "bspread";
+        public _$sheetBody: JQuery;        
         private _isUpdating = false;
-        private _container: JQuery;
         private _columns: ObservableArray<Column>;
         private _rows: ObservableArray<Row>;
         private _dataSource: ObservableArray<ObservableDataItem>;
         private _cells: Array<Array<Cell>>;
-        private _marquee: Marquee;
+        private _index: number;
 
         private _bodyDimensions: Point;
 
-        constructor( selector: string, options: Object )
+        private _isTabMode: Boolean;
+        private _tabModeStartIndex: number;
+        private _currentCell: Cell;
+
+        constructor( workbook: Workbook, index: number, options: Object )
         {
             var defaults = {
 
             };
-            
+
+            this._workbook = workbook;
+            this._index = index;
             this._options = options;
 
-            this._container = $( selector );
+            this._isTabMode = false;
+            
             this._columns = new ObservableArray<Column>();
             this._rows = new ObservableArray<Row>();
             this._dataSource = new ObservableArray<ObservableDataItem>();
@@ -56,21 +244,15 @@ module BsSpread
             //this.columns.addedItem.register( this.columnAdded );
             //this.columns.arrayChanged.register( this.columnsChanged );
 
-            this._$sheet = $( "<div class=\"" + this._prefix + "-sheet\" style=\"margin: 2px;\"></div>" );
-            this._toolsElement = $( "<div class=\"" + this._prefix + "-tools\" style=\"position: absolute; top: 2px; right: 2px; bottom: 2px; left: 2px; pointer-events: none;\"></div>" );
+            this._$sheet = $( "<div class=\"" + this._workbook.prefix + "-sheet\" style=\"margin: 2px;\"></div>" );
 
-            this._$columnHeaders = $( "<div class=\"" + this._prefix + "-column-headers\"></div>" );
-            this._$sheetBody = $( "<div class=\"" + this._prefix + "-sheet-body\"></div>" );
+            this._$columnHeaders = $( "<div class=\"" + this._workbook.prefix + "-column-headers\"></div>" );
+            this._$sheetBody = $( "<div class=\"" + this._workbook.prefix + "-sheet-body\"></div>" );
 
             this._$sheet.append( this._$columnHeaders );
             this._$sheet.append( this._$sheetBody );
 
-            this._container.append( this._$sheet );
-            this._container.append( this._toolsElement );
-
-            this._container.css( { position: "relative" } );
-
-            this._marquee = new Marquee( this );
+            this._$sheet.insertBefore( this._workbook.toolsContainer );
 
             this._isUpdating = true;
 
@@ -118,8 +300,7 @@ module BsSpread
             
             this._createRowData();
 
-            window.addEventListener( "resize", _helpers.proxy( this._onResize, this ) );
-            this._$sheet[0].addEventListener( "scroll", _helpers.proxy( this._onResize, this ) );
+            this._$sheet[0].addEventListener( "scroll", _helpers.proxy( this._onScroll, this ) );
 
             this.endUpdate();
         }
@@ -159,9 +340,79 @@ module BsSpread
             this._drawBody.call( this );
         };
 
-        public _cellClicked( cell: Cell, e: MouseEvent )
+
+        public _tabToNextCell()
         {
-            this._marquee.selectCells( cell.rowIndex, cell.columnIndex, cell.rowIndex, cell.columnIndex );
+            if ( this._isTabMode === false )
+            {
+                this._isTabMode = true;
+                this._tabModeStartIndex = this._currentCell.columnIndex;
+            }
+
+            var nextCell = this._currentCell.row.cells[this._currentCell.columnIndex + 1];
+
+            if ( !nextCell )
+            {
+                var nextRow = this._rows[this._currentCell.row.index + 1];
+
+                if ( nextRow )
+                {
+                    nextCell = nextRow.cells[0];
+                }
+            }
+
+            if ( nextCell )
+            {
+                this.selectCell( nextCell );
+            }
+        }
+
+        public _tabToPreviousCell()
+        {
+            this._isTabMode = false;
+
+            var previousCell = this._currentCell.row.cells[this._currentCell.columnIndex - 1];
+
+            if ( !previousCell )
+            {
+                var previousRow = this._rows[this._currentCell.row.index - 1];
+
+                if ( previousRow )
+                {
+                    previousCell = previousRow.cells[ previousRow.cells.length - 1 ];
+                }
+            }
+
+            if ( previousCell )
+            {
+                this.selectCell( previousCell );
+            }
+        }
+
+        public _enterToNextRow()
+        {
+            var colIndex: number;
+            if ( this._isTabMode )
+            {
+                colIndex = this._tabModeStartIndex;
+            }
+            else
+            {
+                colIndex = this._currentCell.columnIndex;
+            }
+
+            var nextRow = this._rows[this._currentCell.row.index + 1];
+
+            if ( nextRow )
+            {
+                this.selectCell( nextRow.cells[colIndex] );
+            }
+        }
+
+        public selectCell( cell: Cell )
+        {
+            this._currentCell = cell;
+            this._workbook.marquee.selectCells( cell.rowIndex, cell.columnIndex, cell.rowIndex, cell.columnIndex );
         }
 
         private _columnsChanged( column: Column )
@@ -178,13 +429,16 @@ module BsSpread
 
         }
 
+        /**
+         * Regenerates the cell data for the spreadsheet.
+         */
         private _createCellData()
         {
             this._cells = [];
 
             for ( var i: number = 0; i < this._columns.length; i++ )
             {
-                this._columns[i]._cells = [];
+                this._columns[i]._clearCells();
             }
 
             for ( var i: number = 0; i < this._dataSource.length; i++ )
@@ -195,15 +449,20 @@ module BsSpread
                     var cell = new Cell( this._dataSource[i][this._columns[j]._key], this, this._rows[i], this.columns[j] );
 
                     this._cells[i][j] = cell;
-                    this._columns[j]._cells.push( cell );
+                    this._columns[j]._addCell( cell );
                 }
 
-                this._rows[i]._cells = this._cells[i];
+                this._rows[i]._setCells( this._cells[i] );
             }
         }
 
+        /**
+         * Regenerates the rows and cell data for the spreadsheet.
+         */
         private _createRowData()
         {
+            this._rows = new ObservableArray<Row>();
+
             for ( var i = 0; i < this._dataSource.length; i++ )
             {
                 var row = new Row();
@@ -226,7 +485,7 @@ module BsSpread
             for ( var i = 0; i < this._columns.length; i++ )
             {
                 var $cell = this.createCell( new Point( currentPosition, 0 ), "Header: " + ( i + 1 ) );
-                $cell.addClass( this._prefix + "-column-header" );
+                $cell.addClass( this._workbook.prefix + "-column-header" );
                 this._$columnHeaders.append( $cell );
 
                 this._columns[i].position = currentPosition;
@@ -282,27 +541,22 @@ module BsSpread
 
         private createCell( pos: Point, content: string )
         {
-            return $( "<div class=\"" + this._prefix + "-cell\" style=\"position: absolute; top: " + pos.y + "px; left: " + pos.x + "px; overflow: hidden; width: 100px;\">" + content + "</div>" );
+            return $( "<div class=\"" + this._workbook.prefix + "-cell\" style=\"position: absolute; top: " + pos.y + "px; left: " + pos.x + "px; overflow: hidden; width: 100px;\">" + content + "</div>" );
         };
 
         private _onResize(): void
         {
-            this._marquee.recalculatePosition();
+            
         }
 
-        get container()
+        private _onScroll(): void
         {
-            return this._container;
+            this._workbook.marquee.recalculatePosition();
         }
 
         get sheetContainer()
         {
             return this._$sheet;
-        }
-
-        get toolsContainer(): JQuery
-        {
-            return this._toolsElement;
         }
 
         get bodyContainer(): JQuery
@@ -315,33 +569,60 @@ module BsSpread
             return this._bodyDimensions;
         }
 
+        get workbook(): Workbook
+        {
+            return this._workbook;
+        }
+
+        get index(): Number
+        {
+            return this._index;
+        }
+
+        /**
+         * Gets the columns associated with the spreadsheet.
+         */
         get columns(): ObservableArray<Column>
         {
             return this._columns;
         }
 
+        /**
+         * Gets the rows associated with the spreadsheet.
+         */
         get rows(): ObservableArray<Row>
         {
             return this._rows;
         }
 
-        get prefix(): string
-        {
-            return this._prefix;
-        }
-
+        /**
+         * Gets the cells associated with the spreadsheet.
+         */
         get cells(): Array<Array<Cell>>
         {
             return this._cells;
         }
 
+        /**
+         * Gets the data source for the sheet.
+         */
         get dataSource(): ObservableArray<ObservableDataItem> | Array<any>
         {
             return this._dataSource;
         }
+        /**
+         * Sets the data source for the sheet.
+         */
         set dataSource( newSource: ObservableArray<ObservableDataItem> | Array<any> )
         {
-            this._dataSource = this._createObservableDataSource( newSource );
+            if ( _helpers.isArray( newSource ) )
+            {
+                this._dataSource = this._createObservableDataSource( newSource );
+            }
+            else
+            {
+                this._dataSource = newSource as ObservableArray<ObservableDataItem>;
+            }
         }
     }
 
@@ -360,7 +641,10 @@ module BsSpread
          */
         protected _position: number;
 
-        public _cells: Array<Cell>;
+        /**
+         * Holds the cells associated with the row/column.
+         */
+        protected _cells: Array<Cell>;
 
         constructor()
         {
@@ -371,14 +655,32 @@ module BsSpread
         }
 
         /**
-         * Gets the index of the column/row.
+         * Adds a cell the the list of cells that are managed by the row/column.
+         * @param cell
+         */
+        public _addCell( cell: Cell )
+        {
+            this._cells.push( cell );
+        }
+
+        /**
+         * Empties the list of cells that are managed by the row/column for the purposes of rebuilding.
+         * @param cell
+         */
+        public _clearCells()
+        {
+            this._cells = [];
+        }
+
+        /**
+         * Gets the index of the row/column.
          */
         get index(): number
         {
             return this._index;
         }
         /**
-         * Sets the index of the column/row.
+         * Sets the index of the row/column.
          */
         set index( val: number )
         {
@@ -386,7 +688,15 @@ module BsSpread
         }
 
         /**
-         * Gets the position of the column/row.
+         * Gets the cells managed by the row/column.
+         */
+        get cells(): Array<Cell>
+        {
+            return this._cells;
+        }
+
+        /**
+         * Gets the position of the row/column.
          */
         get position(): number
         {
@@ -468,6 +778,15 @@ module BsSpread
         }
 
         /**
+         * Sets the cells associated with the row.
+         * @param cells
+         */
+        public _setCells( cells: Array<Cell> )
+        {
+            this._cells = cells;
+        }
+        
+        /**
          * Gets the height of the row.
          */
         get height(): number
@@ -530,7 +849,7 @@ module BsSpread
         
         public recreateElement()
         {
-            var newElement = $( "<div class=\"" + this._sheet.prefix + "-cell\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>" );
+            var newElement = $( "<div class=\"" + this._sheet.workbook.prefix + "-cell\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>" );
 
             if ( this._element && this._element.parentElement )
             {
@@ -543,7 +862,7 @@ module BsSpread
 
         private _cellClicked( e: MouseEvent )
         {
-            this._sheet._cellClicked( this, e );
+            this._sheet.selectCell( this );
         }
         
         /**
@@ -800,7 +1119,7 @@ module BsSpread
         /**
          * Holds the sheet this marquee is attached to.
          */
-        private _sheet: Spreadsheet;
+        private _workbook: Workbook;
 
         /**
          * Holds whether or not the marquee is currently visible.
@@ -814,10 +1133,10 @@ module BsSpread
 
         /**
          * Creates a new Marquee object on the specified spreadsheet.
-         * @param {Spreadsheet} sheet The left position of the rectangle.
+         * @param {Workbook} workbook The left position of the rectangle.
          * @param {any} options The top position of the rectangle.
          */
-        constructor( sheet: Spreadsheet, options?: any )
+        constructor( workbook: Workbook, options?: any )
         {
             var defaults = {
                 borderWidth: 2,
@@ -825,18 +1144,18 @@ module BsSpread
             };
             this._options = $.extend( {}, defaults, options );
 
-            this._sheet = sheet;
+            this._workbook = workbook;
             this._isVisible = false;
 
             this._element = document.createElement( "div" );
-            this._element.classList.add( this._sheet.prefix + "-marquee" );
+            this._element.classList.add( this._workbook.prefix + "-marquee" );
             this._element.style.position = "absolute";
             this._element.style.borderWidth = this._options.borderWidth + "px";
             this._element.style.borderColor = this._options.borderColor;
             this._element.style.borderStyle = "solid";
             this._element.style.display = "none";
 
-            this._sheet.toolsContainer.append( $( this._element ) );
+            this._workbook.toolsContainer.append( $( this._element ) );
         }
 
         /**
@@ -851,8 +1170,8 @@ module BsSpread
             if ( endRow == undefined ) endRow = startRow;
             if ( endColumn == undefined ) endColumn = startColumn;
 
-            this._startCell = this._sheet.cells[startRow][startColumn];
-            this._endCell = this._sheet.cells[endRow][endColumn];
+            this._startCell = this._workbook.selectedSheet.cells[startRow][startColumn];
+            this._endCell = this._workbook.selectedSheet.cells[endRow][endColumn];
             
             this.recalculatePosition();
         }
@@ -862,35 +1181,37 @@ module BsSpread
          */
         public recalculatePosition()
         {
+            if ( this._startCell == undefined ) return;
+
             var spacing = this._options.borderWidth / 2;
 
-            var topOffset = parseInt( this._sheet._$sheetBody.get( 0 ).style.top );
+            var topOffset = parseInt( this._workbook.selectedSheet._$sheetBody.get( 0 ).style.top );
 
-            var top = topOffset + this._startCell.row.position - spacing - 1 - this._sheet.sheetContainer[0].scrollTop;
-            var left = this._startCell.column.position - spacing - 1 - this._sheet.sheetContainer[0].scrollLeft;
+            var top = topOffset + this._startCell.row.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer[0].scrollTop;
+            var left = this._startCell.column.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer[0].scrollLeft;
 
-            var bodyTop = this._sheet.bodyDimensions.y;
-            var bodyLeft = this._sheet.bodyDimensions.x;
+            var bodyTop = this._workbook.selectedSheet.bodyDimensions.y;
+            var bodyLeft = this._workbook.selectedSheet.bodyDimensions.x;
 
             var rowHeight = 0, columnWidth = 0;
             for ( var i = this._startCell.rowIndex; i <= this._endCell.rowIndex; i++ )
             {
-                rowHeight += this._sheet.rows[i].height;
+                rowHeight += this._workbook.selectedSheet.rows[i].height;
             }
             for ( var i = this._startCell.columnIndex; i <= this._endCell.columnIndex; i++ )
             {
-                columnWidth += this._sheet.columns[i].width;
+                columnWidth += this._workbook.selectedSheet.columns[i].width;
             }
 
-            if ( this._startCell.row.position + bodyTop < this._sheet.sheetContainer[0].scrollTop )
+            if ( this._startCell.row.position + bodyTop < this._workbook.selectedSheet.sheetContainer[0].scrollTop )
             {
-                var difference = this._startCell.row.position + bodyTop - this._sheet.sheetContainer[0].scrollTop;
+                var difference = this._startCell.row.position + bodyTop - this._workbook.selectedSheet.sheetContainer[0].scrollTop;
                 rowHeight += difference;
                 top = -spacing - 1;
             }
-            if ( this._startCell.column.position + bodyLeft < this._sheet.sheetContainer[0].scrollLeft )
+            if ( this._startCell.column.position + bodyLeft < this._workbook.selectedSheet.sheetContainer[0].scrollLeft )
             {
-                var difference = this._startCell.column.position + bodyLeft - this._sheet.sheetContainer[0].scrollLeft;
+                var difference = this._startCell.column.position + bodyLeft - this._workbook.selectedSheet.sheetContainer[0].scrollLeft;
                 columnWidth += difference;
                 left = -spacing - 1;
             }
@@ -1083,6 +1404,41 @@ module BsSpread
         get right(): number
         {
             return ( this._position.x + this._dimensions.x );
+        }
+    }
+
+    class KeyHandler
+    {
+        private _workbook: Workbook;
+
+        constructor( workbook: Workbook )
+        {
+            this._workbook = workbook;
+        }
+
+        public onKeyDown( e: KeyboardEvent )
+        {
+            var isShiftDown = e.shiftKey;
+            var keyCode = e.keyCode;
+
+            if ( keyCode == 9 )
+            {
+                if ( isShiftDown )
+                {
+                    this._workbook.selectedSheet._tabToPreviousCell();
+                }
+                else
+                {
+                    this._workbook.selectedSheet._tabToNextCell();
+                }
+
+                e.cancelBubble = true;
+                e.returnValue = false;
+            }
+            else if ( keyCode == 13 )
+            {
+                this._workbook.selectedSheet._enterToNextRow();
+            }
         }
     }
 
