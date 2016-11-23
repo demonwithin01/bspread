@@ -19,7 +19,7 @@ var BsSpread;
          */
         Helpers.prototype.proxy = function (callback, self) {
             return function (evt) {
-                callback.apply(self, evt);
+                callback.apply(self, [evt]);
             };
         };
         return Helpers;
@@ -286,9 +286,15 @@ var BsSpread;
             this._cells = [];
         }
         Object.defineProperty(RowCol.prototype, "index", {
+            /**
+             * Gets the index of the column/row.
+             */
             get: function () {
                 return this._index;
             },
+            /**
+             * Sets the index of the column/row.
+             */
             set: function (val) {
                 this._index = val;
             },
@@ -296,6 +302,9 @@ var BsSpread;
             configurable: true
         });
         Object.defineProperty(RowCol.prototype, "position", {
+            /**
+             * Gets the position of the column/row.
+             */
             get: function () {
                 return this._position;
             },
@@ -311,9 +320,15 @@ var BsSpread;
             this._width = 100;
         }
         Object.defineProperty(Column.prototype, "index", {
+            /**
+             * Gets the index of the column.
+             */
             get: function () {
                 return this._index;
             },
+            /**
+             * Sets the index of the column.
+             */
             set: function (val) {
                 this._index = val;
                 this._position = this._index * this._width;
@@ -341,9 +356,15 @@ var BsSpread;
             this._height = 28;
         }
         Object.defineProperty(Row.prototype, "index", {
+            /**
+             * Gets the index of the row.
+             */
             get: function () {
                 return this._index;
             },
+            /**
+             * Sets the index of the row.
+             */
             set: function (val) {
                 this._index = val;
                 this._position = this._index * this._height;

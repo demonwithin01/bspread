@@ -16,7 +16,7 @@ module BsSpread
         {
             return function ( evt: Event ): void
             {
-                callback.apply( self, evt );
+                callback.apply( self, [ evt ] );
             };
         }
     }
@@ -370,15 +370,24 @@ module BsSpread
             this._cells = [];
         }
 
+        /**
+         * Gets the index of the column/row.
+         */
         get index(): number
         {
             return this._index;
         }
+        /**
+         * Sets the index of the column/row.
+         */
         set index( val: number )
         {
             this._index = val;
         }
 
+        /**
+         * Gets the position of the column/row.
+         */
         get position(): number
         {
             return this._position;
@@ -387,7 +396,11 @@ module BsSpread
 
     export class Column extends RowCol
     {
+        /**
+         * Holds the width of the column.
+         */
         private _width: number;
+
         public _key: string;
 
         constructor()
@@ -397,11 +410,16 @@ module BsSpread
             this._width = 100;
         }
 
-        
+        /**
+         * Gets the index of the column.
+         */
         get index(): number
         {
             return this._index;
         }
+        /**
+         * Sets the index of the column.
+         */
         set index( val: number )
         {
             this._index = val;
@@ -419,8 +437,11 @@ module BsSpread
 
     export class Row extends RowCol
     {
+        /**
+         * Holds the height of the row.
+         */
         private _height: number;
-
+        
         public dataItem: any;
 
         constructor()
@@ -430,10 +451,16 @@ module BsSpread
             this._height = 28;
         }
 
+        /**
+         * Gets the index of the row.
+         */
         get index(): number
         {
             return this._index;
         }
+        /**
+         * Sets the index of the row.
+         */
         set index( val: number )
         {
             this._index = val;
@@ -699,7 +726,6 @@ module BsSpread
      */
     class ObservableDataItem
     {
-        
         /**
          * Holds the sheet this data item was created for.
          */
@@ -714,8 +740,7 @@ module BsSpread
          * Array indexer, created to prevent compiler "errors".
          */
         [key: string]: any;
-
-
+        
         /**
          * The event which is raised when the data item is changed.
          */
@@ -757,7 +782,6 @@ module BsSpread
      */
     class Marquee
     {
-
         /**
          * Holds any options associated with this marquee.
          */
