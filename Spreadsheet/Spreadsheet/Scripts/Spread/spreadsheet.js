@@ -19,7 +19,7 @@ var BsSpread;
          */
         Helpers.prototype.proxy = function (callback, self) {
             return function (evt) {
-                callback.call(self, evt);
+                callback.apply(self, [evt]);
             };
         };
         /**
@@ -75,6 +75,52 @@ var BsSpread;
             return elements[0];
         };
         /**
+         * Gets the total width of the columns for the indices specified.
+         * @param sheet {Spreadsheet} The sheet to use to get the columns.
+         * @param startIndex {number} The first index of the column to retrieve.
+         * @param endIndex {number} The final index of the column to retrieve.
+         * @returns {number} The total width of the requested columns.
+         */
+        Helpers.prototype.getColumnsTotalWidth = function (sheet, startIndex, endIndex) {
+            var width = 0;
+            if (startIndex < 0)
+                startIndex = 0;
+            if (endIndex < startIndex) {
+                for (var i = startIndex; i >= 0 && i >= endIndex; --i) {
+                    width += sheet.columns[i].width;
+                }
+            }
+            else {
+                for (var i = startIndex; i < sheet.columns.length && i <= endIndex; i++) {
+                    width += sheet.columns[i].width;
+                }
+            }
+            return width;
+        };
+        /**
+         * Gets the total height of the rows for the indices specified.
+         * @param sheet {Spreadsheet} The sheet to use to get the rows.
+         * @param startIndex {number} The first index of the row to retrieve.
+         * @param endIndex {number} The final index of the row to retrieve.
+         * @returns {number} The total height of the requested rows.
+         */
+        Helpers.prototype.getRowsTotalHeight = function (sheet, startIndex, endIndex) {
+            var width = 0;
+            if (startIndex < 0)
+                startIndex = 0;
+            if (endIndex < startIndex) {
+                for (var i = startIndex; i >= 0 && i >= endIndex; --i) {
+                    width += sheet.rows[i].height;
+                }
+            }
+            else {
+                for (var i = startIndex; i < sheet.rows.length && i <= endIndex; i++) {
+                    width += sheet.rows[i].height;
+                }
+            }
+            return width;
+        };
+        /**
          * Resolves a selector string into an array of html elements. Does not support advanced search methods such as descendents.
          * @param selector Supports tags, ids, and class selectors.
          */
@@ -101,10 +147,19 @@ var BsSpread;
         return Helpers;
     }());
     BsSpread.Helpers = Helpers;
+    var WorkbookOptions = (function () {
+        function WorkbookOptions() {
+            this.debug = false;
+            this.scrollColumnBufferCount = 1;
+            this.scrollRowBufferCount = 1;
+        }
+        return WorkbookOptions;
+    }());
     var Workbook = (function () {
         function Workbook(selector, options) {
             this._prefix = "bspread";
-            this._options = options;
+            var defaults = new WorkbookOptions();
+            this._options = $.extend({}, defaults, options);
             this._container = $(selector);
             this._keyHandler = new KeyHandler(this);
             this._container.css({ position: "relative" });
@@ -119,6 +174,25 @@ var BsSpread;
         Workbook.prototype._onResize = function () {
             this._marquee.recalculatePosition();
         };
+        /**
+         * Writes a message to the console log.
+         * @param message The message to be written to the log.
+         */
+        Workbook.prototype._log = function (message) {
+            if (this._options.debug) {
+                console.log(message);
+            }
+        };
+        Object.defineProperty(Workbook.prototype, "options", {
+            /**
+             * Gets the main container for the spreadsheets.
+             */
+            get: function () {
+                return this._options;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Workbook.prototype, "container", {
             /**
              * Gets the main container for the spreadsheets.
@@ -295,13 +369,46 @@ var BsSpread;
             else {
                 colIndex = this._currentCell.columnIndex;
             }
-            var nextRow = this._rows[this._currentCell.row.index + 1];
+            var nextRow = this._rows[this._currentCell.rowIndex + 1];
             if (nextRow) {
                 this.selectCell(nextRow.cells[colIndex]);
             }
         };
+        Spreadsheet.prototype._selectCellInDirection = function (direction) {
+            var row = this._rows[this._currentCell.rowIndex + direction.y];
+            var column = this._columns[this._currentCell.columnIndex + direction.x];
+            if (row === undefined || column === undefined) {
+                return;
+            }
+            this.selectCell(this._cells[row.index][column.index]);
+        };
         Spreadsheet.prototype.selectCell = function (cell) {
             this._currentCell = cell;
+            var topOffset = parseInt(this._$sheetBody.get(0).style.top);
+            var right = cell.column.position + cell.column.width;
+            var bottom = topOffset + cell.row.position + cell.row.height;
+            var bodyRight = this.sheetContainer.scrollLeft + this.sheetContainer.clientWidth;
+            var bodyBottom = this.sheetContainer.scrollTop + this.sheetContainer.clientHeight;
+            var jumpForwardRow = BsSpread._helpers.getRowsTotalHeight(this, cell.rowIndex + 1, cell.rowIndex + this._workbook.options.scrollRowBufferCount);
+            var jumpBackwardRow = BsSpread._helpers.getRowsTotalHeight(this, cell.rowIndex - 1, cell.rowIndex - this._workbook.options.scrollRowBufferCount);
+            var jumpForwardColumn = BsSpread._helpers.getColumnsTotalWidth(this, cell.columnIndex + 1, cell.columnIndex + this._workbook.options.scrollColumnBufferCount);
+            var jumpBackwardColumn = BsSpread._helpers.getColumnsTotalWidth(this, cell.columnIndex - 1, cell.columnIndex - this._workbook.options.scrollColumnBufferCount);
+            if (bottom + jumpForwardRow > bodyBottom) {
+                var difference = bottom - bodyBottom + jumpForwardRow;
+                this.sheetContainer.scrollTop += difference;
+            }
+            else if (cell.row.position + topOffset < this.sheetContainer.scrollTop + jumpBackwardRow) {
+                var difference = this.sheetContainer.scrollTop - (cell.row.position + topOffset) + jumpBackwardRow;
+                this.sheetContainer.scrollTop -= difference;
+            }
+            if (right + jumpForwardColumn > bodyRight) {
+                var difference = right - bodyRight + jumpForwardColumn;
+                this.sheetContainer.scrollLeft += difference;
+            }
+            else if (cell.column.position < this.sheetContainer.scrollLeft + jumpBackwardColumn) {
+                var difference = this.sheetContainer.scrollLeft - cell.column.position + jumpBackwardColumn;
+                this.sheetContainer.scrollLeft -= difference;
+            }
             this._workbook.marquee.selectCells(cell.rowIndex, cell.columnIndex, cell.rowIndex, cell.columnIndex);
         };
         Spreadsheet.prototype._columnsChanged = function (column) {
@@ -397,7 +504,7 @@ var BsSpread;
         };
         Object.defineProperty(Spreadsheet.prototype, "sheetContainer", {
             get: function () {
-                return this._$sheet;
+                return this._$sheet.get(0);
             },
             enumerable: true,
             configurable: true
@@ -515,7 +622,7 @@ var BsSpread;
                 return this._index;
             },
             /**
-             * Gets the index of the row/column.
+             * Sets the index of the row/column.
              */
             set: function (val) {
                 this._index = val;
@@ -552,9 +659,15 @@ var BsSpread;
             this._width = 100;
         }
         Object.defineProperty(Column.prototype, "index", {
+            /**
+             * Gets the index of the column.
+             */
             get: function () {
                 return this._index;
             },
+            /**
+             * Sets the index of the column.
+             */
             set: function (val) {
                 this._index = val;
                 this._position = this._index * this._width;
@@ -582,9 +695,15 @@ var BsSpread;
             this._height = 28;
         }
         Object.defineProperty(Row.prototype, "index", {
+            /**
+             * Gets the index of the row.
+             */
             get: function () {
                 return this._index;
             },
+            /**
+             * Sets the index of the row.
+             */
             set: function (val) {
                 this._index = val;
                 this._position = this._index * this._height;
@@ -778,7 +897,7 @@ var BsSpread;
          * Pushes a new value into the array.
          *
          * @param item {any} The object to be added to the array.
-         * @returns {Number} The new length of the array.
+         * @returns {number} The new length of the array.
          */
         ObservableArray.prototype.push = function (val) {
             var args = new Array();
@@ -876,11 +995,15 @@ var BsSpread;
             if (this._startCell == undefined)
                 return;
             var spacing = this._options.borderWidth / 2;
-            var topOffset = parseInt(this._workbook.selectedSheet._$sheetBody.get(0).style.top);
-            var top = topOffset + this._startCell.row.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer[0].scrollTop;
-            var left = this._startCell.column.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer[0].scrollLeft;
+            var topOffset = parseInt(this._workbook.selectedSheet.bodyContainer.get(0).style.top);
+            var top = topOffset + this._startCell.row.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer.scrollTop;
+            var left = this._startCell.column.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer.scrollLeft;
+            var right = this._endCell.column.position + this._endCell.column.width - spacing - 1;
+            var bottom = topOffset + this._endCell.row.position + this._endCell.row.height - spacing - 1;
             var bodyTop = this._workbook.selectedSheet.bodyDimensions.y;
             var bodyLeft = this._workbook.selectedSheet.bodyDimensions.x;
+            var clientWidth = this._workbook.selectedSheet.sheetContainer.clientWidth;
+            var clientHeight = this._workbook.selectedSheet.sheetContainer.clientHeight;
             var rowHeight = 0, columnWidth = 0;
             for (var i = this._startCell.rowIndex; i <= this._endCell.rowIndex; i++) {
                 rowHeight += this._workbook.selectedSheet.rows[i].height;
@@ -888,15 +1011,25 @@ var BsSpread;
             for (var i = this._startCell.columnIndex; i <= this._endCell.columnIndex; i++) {
                 columnWidth += this._workbook.selectedSheet.columns[i].width;
             }
-            if (this._startCell.row.position + bodyTop < this._workbook.selectedSheet.sheetContainer[0].scrollTop) {
-                var difference = this._startCell.row.position + bodyTop - this._workbook.selectedSheet.sheetContainer[0].scrollTop;
+            var bodyRight = this._workbook.selectedSheet.sheetContainer.scrollLeft + clientWidth;
+            var bodyBottom = this._workbook.selectedSheet.sheetContainer.scrollTop + clientHeight;
+            if (this._startCell.row.position + bodyTop < this._workbook.selectedSheet.sheetContainer.scrollTop) {
+                var difference = this._startCell.row.position + bodyTop - this._workbook.selectedSheet.sheetContainer.scrollTop;
                 rowHeight += difference;
                 top = -spacing - 1;
             }
-            if (this._startCell.column.position + bodyLeft < this._workbook.selectedSheet.sheetContainer[0].scrollLeft) {
-                var difference = this._startCell.column.position + bodyLeft - this._workbook.selectedSheet.sheetContainer[0].scrollLeft;
+            else if (bottom > bodyBottom) {
+                var difference = bottom - bodyBottom;
+                rowHeight -= difference;
+            }
+            if (this._startCell.column.position + bodyLeft < this._workbook.selectedSheet.sheetContainer.scrollLeft) {
+                var difference = this._startCell.column.position + bodyLeft - this._workbook.selectedSheet.sheetContainer.scrollLeft;
                 columnWidth += difference;
                 left = -spacing - 1;
+            }
+            else if (right > bodyRight) {
+                var difference = right - bodyRight;
+                columnWidth -= difference;
             }
             this._element.style.top = top + "px";
             this._element.style.left = left + "px";
@@ -1076,6 +1209,9 @@ var BsSpread;
         return Rect;
     }());
     BsSpread.Rect = Rect;
+    /**
+     * The standard keyboard event handler.
+     */
     var KeyHandler = (function () {
         function KeyHandler(workbook) {
             this._workbook = workbook;
@@ -1083,19 +1219,45 @@ var BsSpread;
         KeyHandler.prototype.onKeyDown = function (e) {
             var isShiftDown = e.shiftKey;
             var keyCode = e.keyCode;
-            if (keyCode == 9) {
-                if (isShiftDown) {
-                    this._workbook.selectedSheet._tabToPreviousCell();
-                }
-                else {
-                    this._workbook.selectedSheet._tabToNextCell();
-                }
-                e.cancelBubble = true;
-                e.returnValue = false;
+            this._workbook._log(e);
+            switch (keyCode) {
+                case BsSpread.keys.enter:
+                    this._workbook.selectedSheet._enterToNextRow();
+                    break;
+                case BsSpread.keys.tab:
+                    if (isShiftDown) {
+                        this._workbook.selectedSheet._tabToPreviousCell();
+                    }
+                    else {
+                        this._workbook.selectedSheet._tabToNextCell();
+                    }
+                    this._cancelEvent(e);
+                    break;
+                case BsSpread.keys.upArrow:
+                    this._workbook.selectedSheet._selectCellInDirection(new Point(0, -1));
+                    this._cancelEvent(e);
+                    break;
+                case BsSpread.keys.rightArrow:
+                    this._workbook.selectedSheet._selectCellInDirection(new Point(1, 0));
+                    this._cancelEvent(e);
+                    break;
+                case BsSpread.keys.downArrow:
+                    this._workbook.selectedSheet._selectCellInDirection(new Point(0, 1));
+                    this._cancelEvent(e);
+                    break;
+                case BsSpread.keys.leftArrow:
+                    this._workbook.selectedSheet._selectCellInDirection(new Point(-1, 0));
+                    this._cancelEvent(e);
+                    break;
             }
-            else if (keyCode == 13) {
-                this._workbook.selectedSheet._enterToNextRow();
-            }
+        };
+        /**
+         * Cancels the key event by stopping bubbling and preventing default.
+         * @param e {KeyboardEvent} The keyboard event to cancel.
+         */
+        KeyHandler.prototype._cancelEvent = function (e) {
+            e.cancelBubble = true;
+            e.returnValue = false;
         };
         return KeyHandler;
     }());
@@ -1103,5 +1265,108 @@ var BsSpread;
      * Holds a group of helper functions.
      */
     BsSpread._helpers = new Helpers();
+    /**
+     * Holds all the key codes for a keydown/keypress/keyup event.
+     */
+    BsSpread.keys = {
+        "backspace": 8,
+        "tab": 9,
+        "enter": 13,
+        "shift": 16,
+        "ctrl": 17,
+        "alt": 18,
+        "pauseBreak": 19,
+        "capsLock": 20,
+        "escape": 27,
+        "pageUp": 33,
+        "pageDown": 34,
+        "end": 35,
+        "home": 36,
+        "leftArrow": 37,
+        "upArrow": 38,
+        "rightArrow": 39,
+        "downArrow": 40,
+        "insert": 45,
+        "delete": 46,
+        "0": 48,
+        "1": 49,
+        "2": 50,
+        "3": 51,
+        "4": 52,
+        "5": 53,
+        "6": 54,
+        "7": 55,
+        "8": 56,
+        "9": 57,
+        "a": 65,
+        "b": 66,
+        "c": 67,
+        "d": 68,
+        "e": 69,
+        "f": 70,
+        "g": 71,
+        "h": 72,
+        "i": 73,
+        "j": 74,
+        "k": 75,
+        "l": 76,
+        "m": 77,
+        "n": 78,
+        "o": 79,
+        "p": 80,
+        "q": 81,
+        "r": 82,
+        "s": 83,
+        "t": 84,
+        "u": 85,
+        "v": 86,
+        "w": 87,
+        "x": 88,
+        "y": 89,
+        "z": 90,
+        "leftWindowKey": 91,
+        "rightWindowKey": 92,
+        "selectKey": 93,
+        "numpad0": 96,
+        "numpad1": 97,
+        "numpad2": 98,
+        "numpad3": 99,
+        "numpad4": 100,
+        "numpad5": 101,
+        "numpad6": 102,
+        "numpad7": 103,
+        "numpad8": 104,
+        "numpad9": 105,
+        "multiply": 106,
+        "add": 107,
+        "subtract": 109,
+        "decimalPoint": 110,
+        "divide": 111,
+        "f1": 112,
+        "f2": 113,
+        "f3": 114,
+        "f4": 115,
+        "f5": 116,
+        "f6": 117,
+        "f7": 118,
+        "f8": 119,
+        "f9": 120,
+        "f10": 121,
+        "f11": 122,
+        "f12": 123,
+        "numLock": 144,
+        "scrollLock": 145,
+        "semiColon": 186,
+        "equalSign": 187,
+        "comma": 188,
+        "dash": 189,
+        "period": 190,
+        "forwardSlash": 191,
+        "graveAccent": 192,
+        "openBracket": 219,
+        "backSlash": 220,
+        "closeBracket": 221,
+        "singleQuote": 222
+    };
 })(BsSpread || (BsSpread = {}));
 //# sourceMappingURL=spreadsheet.js.map
