@@ -19,77 +19,179 @@ var BsSpread;
          */
         Helpers.prototype.proxy = function (callback, self) {
             return function (evt) {
-                callback.apply(self, evt);
+                callback.call(self, evt);
             };
         };
         /**
          * Adds an event listener to the specified element.
-         * @param element
-         * @param type
-         * @param listener
+         * @param element The element, elements, or selector for adding the event listener to.
+         * @param type The event type to attach.
+         * @param listener The callback/listener for the event.
          */
         Helpers.prototype.addEventListener = function (element, type, listener) {
             var htmlElement;
             if (typeof (element) === 'string') {
-                htmlElement = this._resolveElement(element);
+                var htmlElements = this._resolveElement(element);
+                htmlElements.forEach(function (value) { value.addEventListener(type, listener); });
+            }
+            else if (this.isArray(element)) {
+                var htmlElements = element;
+                htmlElements.forEach(function (value) { value.addEventListener(type, listener); });
             }
             else {
-                htmlElement = element;
+                element.addEventListener(type, listener);
             }
-            htmlElement.addEventListener(type, listener);
         };
         /**
-         * Resolves a selector string into a html element.
-         * @param selector
+         * Determines whether or not the provided object is an array.
+         * @param obj The object to be checked.
+         */
+        Helpers.prototype.isArray = function (obj) {
+            return obj.constructor === Array;
+        };
+        /**
+         * Simple foreach loop for arrays.
+         * @param array The array to loop over.
+         * @param callback The callback method for each item.
+         */
+        Helpers.prototype.forEach = function (array, callback) {
+            if (!array)
+                return;
+            for (var i = 0; i < array.length; i++) {
+                var item = array[i];
+                callback.call(item, i, item);
+            }
+        };
+        /**
+         * Finds the element using the provided selector. Does not support advanced search methods such as descendents.
+         * @param selector Supports tags, ids, and class selectors.
+         * @returns {Element} The first element found using the provided selector.
+         */
+        Helpers.prototype.findElement = function (selector) {
+            var elements = this._resolveElement(selector);
+            if (elements.length == 0) {
+                throw "Element not found using selector: '" + selector + "'";
+            }
+            return elements[0];
+        };
+        /**
+         * Resolves a selector string into an array of html elements. Does not support advanced search methods such as descendents.
+         * @param selector Supports tags, ids, and class selectors.
          */
         Helpers.prototype._resolveElement = function (selector) {
-            var htmlElement;
-            //var elements: NodeListOf<Element>;
+            var htmlElements = [];
             if (selector.indexOf('#') == 0) {
-                htmlElement = document.getElementById(selector);
+                var htmlElement = document.getElementById(selector);
+                htmlElements.push(htmlElement);
             }
             else if (selector.indexOf('.') == 0) {
                 var elements = document.getElementsByClassName(selector);
-                if (elements.length == 0) {
-                    return undefined;
+                for (var i = 0; i < elements.length; i++) {
+                    htmlElements.push(elements[i]);
                 }
-                htmlElement = elements.item(0);
             }
             else {
                 var elements = document.getElementsByTagName(selector);
-                if (elements.length == 0) {
-                    return undefined;
+                for (var i = 0; i < elements.length; i++) {
+                    htmlElements.push(elements[i]);
                 }
-                htmlElement = elements.item(0);
             }
-            return htmlElement;
+            return htmlElements;
         };
         return Helpers;
     }());
     BsSpread.Helpers = Helpers;
-    var Spreadsheet = (function () {
-        function Spreadsheet(selector, options) {
+    var Workbook = (function () {
+        function Workbook(selector, options) {
             this._prefix = "bspread";
-            this._isUpdating = false;
-            var defaults = {};
             this._options = options;
             this._container = $(selector);
+            this._keyHandler = new KeyHandler(this);
+            this._container.css({ position: "relative" });
+            this._sheets = [];
+            this._toolsElement = $("<div class=\"" + this._prefix + "-tools\" style=\"position: absolute; top: 2px; right: 2px; bottom: 2px; left: 2px; pointer-events: none;\"></div>");
+            this._container.append(this._toolsElement);
+            this._marquee = new Marquee(this);
+            this._sheets.push(new Spreadsheet(this, 0, options)); // TEMP
+            window.addEventListener("resize", BsSpread._helpers.proxy(this._onResize, this));
+            window.addEventListener("keydown", BsSpread._helpers.proxy(this._keyHandler.onKeyDown, this._keyHandler));
+        }
+        Workbook.prototype._onResize = function () {
+            this._marquee.recalculatePosition();
+        };
+        Object.defineProperty(Workbook.prototype, "container", {
+            /**
+             * Gets the main container for the spreadsheets.
+             */
+            get: function () {
+                return this._container;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Workbook.prototype, "prefix", {
+            /**
+             * Gets the class prefix for the spreadsheets.
+             */
+            get: function () {
+                return this._prefix;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Workbook.prototype, "marquee", {
+            /**
+             * Gets the marquee.
+             */
+            get: function () {
+                return this._marquee;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Workbook.prototype, "selectedSheet", {
+            /**
+             * Gets the currently selected sheet.
+             */
+            get: function () {
+                return this._sheets[0]; // TEMP
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Workbook.prototype, "toolsContainer", {
+            /**
+             * Gets the html container for the tools.
+             */
+            get: function () {
+                return this._toolsElement;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return Workbook;
+    }());
+    BsSpread.Workbook = Workbook;
+    var Spreadsheet = (function () {
+        function Spreadsheet(workbook, index, options) {
+            this._isUpdating = false;
+            var defaults = {};
+            this._workbook = workbook;
+            this._index = index;
+            this._options = options;
+            this._isTabMode = false;
             this._columns = new ObservableArray();
             this._rows = new ObservableArray();
             this._dataSource = new ObservableArray();
             this._cells = [];
             //this.columns.addedItem.register( this.columnAdded );
             //this.columns.arrayChanged.register( this.columnsChanged );
-            this._$sheet = $("<div class=\"" + this._prefix + "-sheet\" style=\"margin: 2px;\"></div>");
-            this._toolsElement = $("<div class=\"" + this._prefix + "-tools\" style=\"position: absolute; top: 2px; right: 2px; bottom: 2px; left: 2px; pointer-events: none;\"></div>");
-            this._$columnHeaders = $("<div class=\"" + this._prefix + "-column-headers\"></div>");
-            this._$sheetBody = $("<div class=\"" + this._prefix + "-sheet-body\"></div>");
+            this._$sheet = $("<div class=\"" + this._workbook.prefix + "-sheet\" style=\"margin: 2px;\"></div>");
+            this._$columnHeaders = $("<div class=\"" + this._workbook.prefix + "-column-headers\"></div>");
+            this._$sheetBody = $("<div class=\"" + this._workbook.prefix + "-sheet-body\"></div>");
             this._$sheet.append(this._$columnHeaders);
             this._$sheet.append(this._$sheetBody);
-            this._container.append(this._$sheet);
-            this._container.append(this._toolsElement);
-            this._container.css({ position: "relative" });
-            this._marquee = new Marquee(this);
+            this._$sheet.insertBefore(this._workbook.toolsContainer);
             this._isUpdating = true;
             var keys = ["title", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10",
                 "col11", "col12", "col13", "col14", "col15", "col16", "col17", "col18", "col19"];
@@ -126,8 +228,7 @@ var BsSpread;
             }
             this.dataSource = data;
             this._createRowData();
-            window.addEventListener("resize", BsSpread._helpers.proxy(this._onResize, this));
-            this._$sheet[0].addEventListener("scroll", BsSpread._helpers.proxy(this._onResize, this));
+            this._$sheet[0].addEventListener("scroll", BsSpread._helpers.proxy(this._onScroll, this));
             this.endUpdate();
         }
         /**
@@ -157,8 +258,51 @@ var BsSpread;
             this._drawBody.call(this);
         };
         ;
-        Spreadsheet.prototype._cellClicked = function (cell, e) {
-            this._marquee.selectCells(cell.rowIndex, cell.columnIndex, cell.rowIndex, cell.columnIndex);
+        Spreadsheet.prototype._tabToNextCell = function () {
+            if (this._isTabMode === false) {
+                this._isTabMode = true;
+                this._tabModeStartIndex = this._currentCell.columnIndex;
+            }
+            var nextCell = this._currentCell.row.cells[this._currentCell.columnIndex + 1];
+            if (!nextCell) {
+                var nextRow = this._rows[this._currentCell.row.index + 1];
+                if (nextRow) {
+                    nextCell = nextRow.cells[0];
+                }
+            }
+            if (nextCell) {
+                this.selectCell(nextCell);
+            }
+        };
+        Spreadsheet.prototype._tabToPreviousCell = function () {
+            this._isTabMode = false;
+            var previousCell = this._currentCell.row.cells[this._currentCell.columnIndex - 1];
+            if (!previousCell) {
+                var previousRow = this._rows[this._currentCell.row.index - 1];
+                if (previousRow) {
+                    previousCell = previousRow.cells[previousRow.cells.length - 1];
+                }
+            }
+            if (previousCell) {
+                this.selectCell(previousCell);
+            }
+        };
+        Spreadsheet.prototype._enterToNextRow = function () {
+            var colIndex;
+            if (this._isTabMode) {
+                colIndex = this._tabModeStartIndex;
+            }
+            else {
+                colIndex = this._currentCell.columnIndex;
+            }
+            var nextRow = this._rows[this._currentCell.row.index + 1];
+            if (nextRow) {
+                this.selectCell(nextRow.cells[colIndex]);
+            }
+        };
+        Spreadsheet.prototype.selectCell = function (cell) {
+            this._currentCell = cell;
+            this._workbook.marquee.selectCells(cell.rowIndex, cell.columnIndex, cell.rowIndex, cell.columnIndex);
         };
         Spreadsheet.prototype._columnsChanged = function (column) {
             console.log("Columns Changed");
@@ -170,22 +314,29 @@ var BsSpread;
             if (this._isUpdating)
                 return;
         };
+        /**
+         * Regenerates the cell data for the spreadsheet.
+         */
         Spreadsheet.prototype._createCellData = function () {
             this._cells = [];
             for (var i = 0; i < this._columns.length; i++) {
-                this._columns[i]._cells = [];
+                this._columns[i]._clearCells();
             }
             for (var i = 0; i < this._dataSource.length; i++) {
                 this._cells[i] = [];
                 for (var j = 0; j < this._columns.length; j++) {
                     var cell = new Cell(this._dataSource[i][this._columns[j]._key], this, this._rows[i], this.columns[j]);
                     this._cells[i][j] = cell;
-                    this._columns[j]._cells.push(cell);
+                    this._columns[j]._addCell(cell);
                 }
-                this._rows[i]._cells = this._cells[i];
+                this._rows[i]._setCells(this._cells[i]);
             }
         };
+        /**
+         * Regenerates the rows and cell data for the spreadsheet.
+         */
         Spreadsheet.prototype._createRowData = function () {
+            this._rows = new ObservableArray();
             for (var i = 0; i < this._dataSource.length; i++) {
                 var row = new Row();
                 row.index = i;
@@ -200,7 +351,7 @@ var BsSpread;
             var height = 0;
             for (var i = 0; i < this._columns.length; i++) {
                 var $cell = this.createCell(new Point(currentPosition, 0), "Header: " + (i + 1));
-                $cell.addClass(this._prefix + "-column-header");
+                $cell.addClass(this._workbook.prefix + "-column-header");
                 this._$columnHeaders.append($cell);
                 this._columns[i].position = currentPosition;
                 currentPosition += this._columns[i].width;
@@ -236,29 +387,17 @@ var BsSpread;
             return observableDataSource;
         };
         Spreadsheet.prototype.createCell = function (pos, content) {
-            return $("<div class=\"" + this._prefix + "-cell\" style=\"position: absolute; top: " + pos.y + "px; left: " + pos.x + "px; overflow: hidden; width: 100px;\">" + content + "</div>");
+            return $("<div class=\"" + this._workbook.prefix + "-cell\" style=\"position: absolute; top: " + pos.y + "px; left: " + pos.x + "px; overflow: hidden; width: 100px;\">" + content + "</div>");
         };
         ;
         Spreadsheet.prototype._onResize = function () {
-            this._marquee.recalculatePosition();
         };
-        Object.defineProperty(Spreadsheet.prototype, "container", {
-            get: function () {
-                return this._container;
-            },
-            enumerable: true,
-            configurable: true
-        });
+        Spreadsheet.prototype._onScroll = function () {
+            this._workbook.marquee.recalculatePosition();
+        };
         Object.defineProperty(Spreadsheet.prototype, "sheetContainer", {
             get: function () {
                 return this._$sheet;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Spreadsheet.prototype, "toolsContainer", {
-            get: function () {
-                return this._toolsElement;
             },
             enumerable: true,
             configurable: true
@@ -277,7 +416,24 @@ var BsSpread;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Spreadsheet.prototype, "workbook", {
+            get: function () {
+                return this._workbook;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "index", {
+            get: function () {
+                return this._index;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Spreadsheet.prototype, "columns", {
+            /**
+             * Gets the columns associated with the spreadsheet.
+             */
             get: function () {
                 return this._columns;
             },
@@ -285,20 +441,19 @@ var BsSpread;
             configurable: true
         });
         Object.defineProperty(Spreadsheet.prototype, "rows", {
+            /**
+             * Gets the rows associated with the spreadsheet.
+             */
             get: function () {
                 return this._rows;
             },
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Spreadsheet.prototype, "prefix", {
-            get: function () {
-                return this._prefix;
-            },
-            enumerable: true,
-            configurable: true
-        });
         Object.defineProperty(Spreadsheet.prototype, "cells", {
+            /**
+             * Gets the cells associated with the spreadsheet.
+             */
             get: function () {
                 return this._cells;
             },
@@ -306,11 +461,22 @@ var BsSpread;
             configurable: true
         });
         Object.defineProperty(Spreadsheet.prototype, "dataSource", {
+            /**
+             * Gets the data source for the sheet.
+             */
             get: function () {
                 return this._dataSource;
             },
+            /**
+             * Sets the data source for the sheet.
+             */
             set: function (newSource) {
-                this._dataSource = this._createObservableDataSource(newSource);
+                if (BsSpread._helpers.isArray(newSource)) {
+                    this._dataSource = this._createObservableDataSource(newSource);
+                }
+                else {
+                    this._dataSource = newSource;
+                }
             },
             enumerable: true,
             configurable: true
@@ -327,17 +493,50 @@ var BsSpread;
             this._position = 0;
             this._cells = [];
         }
+        /**
+         * Adds a cell the the list of cells that are managed by the row/column.
+         * @param cell
+         */
+        RowCol.prototype._addCell = function (cell) {
+            this._cells.push(cell);
+        };
+        /**
+         * Empties the list of cells that are managed by the row/column for the purposes of rebuilding.
+         * @param cell
+         */
+        RowCol.prototype._clearCells = function () {
+            this._cells = [];
+        };
         Object.defineProperty(RowCol.prototype, "index", {
+            /**
+             * Gets the index of the row/column.
+             */
             get: function () {
                 return this._index;
             },
+            /**
+             * Gets the index of the row/column.
+             */
             set: function (val) {
                 this._index = val;
             },
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(RowCol.prototype, "cells", {
+            /**
+             * Gets the cells managed by the row/column.
+             */
+            get: function () {
+                return this._cells;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(RowCol.prototype, "position", {
+            /**
+             * Gets the position of the row/column.
+             */
             get: function () {
                 return this._position;
             },
@@ -393,6 +592,13 @@ var BsSpread;
             enumerable: true,
             configurable: true
         });
+        /**
+         * Sets the cells associated with the row.
+         * @param cells
+         */
+        Row.prototype._setCells = function (cells) {
+            this._cells = cells;
+        };
         Object.defineProperty(Row.prototype, "height", {
             /**
              * Gets the height of the row.
@@ -438,7 +644,7 @@ var BsSpread;
             this.recreateElement();
         }
         Cell.prototype.recreateElement = function () {
-            var newElement = $("<div class=\"" + this._sheet.prefix + "-cell\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>");
+            var newElement = $("<div class=\"" + this._sheet.workbook.prefix + "-cell\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>");
             if (this._element && this._element.parentElement) {
                 console.log("trigger redraw");
             }
@@ -446,7 +652,7 @@ var BsSpread;
             this._element.addEventListener("click", BsSpread._helpers.proxy(this._cellClicked, this), true);
         };
         Cell.prototype._cellClicked = function (e) {
-            this._sheet._cellClicked(this, e);
+            this._sheet.selectCell(this);
         };
         Object.defineProperty(Cell.prototype, "value", {
             /**
@@ -627,25 +833,25 @@ var BsSpread;
     var Marquee = (function () {
         /**
          * Creates a new Marquee object on the specified spreadsheet.
-         * @param {Spreadsheet} sheet The left position of the rectangle.
+         * @param {Workbook} workbook The left position of the rectangle.
          * @param {any} options The top position of the rectangle.
          */
-        function Marquee(sheet, options) {
+        function Marquee(workbook, options) {
             var defaults = {
                 borderWidth: 2,
                 borderColor: "#00f"
             };
             this._options = $.extend({}, defaults, options);
-            this._sheet = sheet;
+            this._workbook = workbook;
             this._isVisible = false;
             this._element = document.createElement("div");
-            this._element.classList.add(this._sheet.prefix + "-marquee");
+            this._element.classList.add(this._workbook.prefix + "-marquee");
             this._element.style.position = "absolute";
             this._element.style.borderWidth = this._options.borderWidth + "px";
             this._element.style.borderColor = this._options.borderColor;
             this._element.style.borderStyle = "solid";
             this._element.style.display = "none";
-            this._sheet.toolsContainer.append($(this._element));
+            this._workbook.toolsContainer.append($(this._element));
         }
         /**
          * Selects a cell range using the provided indices.
@@ -659,34 +865,36 @@ var BsSpread;
                 endRow = startRow;
             if (endColumn == undefined)
                 endColumn = startColumn;
-            this._startCell = this._sheet.cells[startRow][startColumn];
-            this._endCell = this._sheet.cells[endRow][endColumn];
+            this._startCell = this._workbook.selectedSheet.cells[startRow][startColumn];
+            this._endCell = this._workbook.selectedSheet.cells[endRow][endColumn];
             this.recalculatePosition();
         };
         /**
          * Recalculates the position of the marquee.
          */
         Marquee.prototype.recalculatePosition = function () {
+            if (this._startCell == undefined)
+                return;
             var spacing = this._options.borderWidth / 2;
-            var topOffset = parseInt(this._sheet._$sheetBody.get(0).style.top);
-            var top = topOffset + this._startCell.row.position - spacing - 1 - this._sheet.sheetContainer[0].scrollTop;
-            var left = this._startCell.column.position - spacing - 1 - this._sheet.sheetContainer[0].scrollLeft;
-            var bodyTop = this._sheet.bodyDimensions.y;
-            var bodyLeft = this._sheet.bodyDimensions.x;
+            var topOffset = parseInt(this._workbook.selectedSheet._$sheetBody.get(0).style.top);
+            var top = topOffset + this._startCell.row.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer[0].scrollTop;
+            var left = this._startCell.column.position - spacing - 1 - this._workbook.selectedSheet.sheetContainer[0].scrollLeft;
+            var bodyTop = this._workbook.selectedSheet.bodyDimensions.y;
+            var bodyLeft = this._workbook.selectedSheet.bodyDimensions.x;
             var rowHeight = 0, columnWidth = 0;
             for (var i = this._startCell.rowIndex; i <= this._endCell.rowIndex; i++) {
-                rowHeight += this._sheet.rows[i].height;
+                rowHeight += this._workbook.selectedSheet.rows[i].height;
             }
             for (var i = this._startCell.columnIndex; i <= this._endCell.columnIndex; i++) {
-                columnWidth += this._sheet.columns[i].width;
+                columnWidth += this._workbook.selectedSheet.columns[i].width;
             }
-            if (this._startCell.row.position + bodyTop < this._sheet.sheetContainer[0].scrollTop) {
-                var difference = this._startCell.row.position + bodyTop - this._sheet.sheetContainer[0].scrollTop;
+            if (this._startCell.row.position + bodyTop < this._workbook.selectedSheet.sheetContainer[0].scrollTop) {
+                var difference = this._startCell.row.position + bodyTop - this._workbook.selectedSheet.sheetContainer[0].scrollTop;
                 rowHeight += difference;
                 top = -spacing - 1;
             }
-            if (this._startCell.column.position + bodyLeft < this._sheet.sheetContainer[0].scrollLeft) {
-                var difference = this._startCell.column.position + bodyLeft - this._sheet.sheetContainer[0].scrollLeft;
+            if (this._startCell.column.position + bodyLeft < this._workbook.selectedSheet.sheetContainer[0].scrollLeft) {
+                var difference = this._startCell.column.position + bodyLeft - this._workbook.selectedSheet.sheetContainer[0].scrollLeft;
                 columnWidth += difference;
                 left = -spacing - 1;
             }
@@ -868,10 +1076,28 @@ var BsSpread;
         return Rect;
     }());
     BsSpread.Rect = Rect;
-    var KeyDispatcher = (function () {
-        function KeyDispatcher() {
+    var KeyHandler = (function () {
+        function KeyHandler(workbook) {
+            this._workbook = workbook;
         }
-        return KeyDispatcher;
+        KeyHandler.prototype.onKeyDown = function (e) {
+            var isShiftDown = e.shiftKey;
+            var keyCode = e.keyCode;
+            if (keyCode == 9) {
+                if (isShiftDown) {
+                    this._workbook.selectedSheet._tabToPreviousCell();
+                }
+                else {
+                    this._workbook.selectedSheet._tabToNextCell();
+                }
+                e.cancelBubble = true;
+                e.returnValue = false;
+            }
+            else if (keyCode == 13) {
+                this._workbook.selectedSheet._enterToNextRow();
+            }
+        };
+        return KeyHandler;
     }());
     /**
      * Holds a group of helper functions.
