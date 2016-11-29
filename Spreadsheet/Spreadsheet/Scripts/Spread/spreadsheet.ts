@@ -16,7 +16,7 @@ module BsSpread
         {
             return function ( evt: Event ): void
             {
-                callback.apply( self, [ evt ] );
+                return callback.apply( self, [ evt ] );
             };
         }
 
@@ -211,7 +211,7 @@ module BsSpread
         private _toolsElement: JQuery;
         private _sheets: Array<Spreadsheet>;
         private _options: WorkbookOptions;
-        private _keyHandler: KeyHandler;
+        private _keyHandler: InputHandler;
 
         constructor( selector: string, options: WorkbookOptions )
         {
@@ -219,7 +219,6 @@ module BsSpread
 
             this._options = $.extend( {}, defaults, options );
             this._container = $( selector );
-            this._keyHandler = new KeyHandler( this );
             
             this._container.css( { position: "relative" });
 
@@ -232,8 +231,8 @@ module BsSpread
             
             this._sheets.push( new Spreadsheet( this, 0, options ) ); // TEMP
 
+            this._keyHandler = new InputHandler( this );
             window.addEventListener( "resize", _helpers.proxy( this._onResize, this ) );
-            window.addEventListener( "keydown", _helpers.proxy( this._keyHandler.onKeyDown, this._keyHandler ) );
         }
 
         private _onResize(): void
@@ -355,7 +354,8 @@ module BsSpread
             this._isUpdating = true;
 
             var keys = ["title", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10",
-                        "col11", "col12", "col13", "col14", "col15", "col16", "col17", "col18", "col19"];
+                        "col11", "col12", "col13", "col14", "col15", "col16", "col17", "col18", "col19", "col20",
+                        "col21", "col22", "col23", "col24", "col25", "col26", "col27", "col28", "col29"];
 
             for ( var i = 0; i < keys.length; i++ )
             {
@@ -368,29 +368,39 @@ module BsSpread
 
             var data: any[] = [];
 
-            for ( var i = 0; i < 22; i++ )
+            for ( var i = 0; i < 122; i++ )
             {
                 data.push( {
                     title: "Row: " + ( i + 1 ),
-                    col1: Math.round( Math.random() * 100 ),
-                    col2: Math.round( Math.random() * 100 ),
-                    col3: Math.round( Math.random() * 100 ),
-                    col4: Math.round( Math.random() * 100 ),
-                    col5: Math.round( Math.random() * 100 ),
-                    col6: Math.round( Math.random() * 100 ),
-                    col7: Math.round( Math.random() * 100 ),
-                    col8: Math.round( Math.random() * 100 ),
-                    col9: Math.round( Math.random() * 100 ),
-                    col10: Math.round( Math.random() * 100 ),
-                    col11: Math.round( Math.random() * 100 ),
-                    col12: Math.round( Math.random() * 100 ),
-                    col13: Math.round( Math.random() * 100 ),
-                    col14: Math.round( Math.random() * 100 ),
-                    col15: Math.round( Math.random() * 100 ),
-                    col16: Math.round( Math.random() * 100 ),
-                    col17: Math.round( Math.random() * 100 ),
-                    col18: Math.round( Math.random() * 100 ),
-                    col19: Math.round( Math.random() * 100 )
+                    col1: Math.round( Math.random() * 10000 ),
+                    col2: Math.round( Math.random() * 10000 ),
+                    col3: Math.round( Math.random() * 10000 ),
+                    col4: Math.round( Math.random() * 10000 ),
+                    col5: Math.round( Math.random() * 10000 ),
+                    col6: Math.round( Math.random() * 10000 ),
+                    col7: Math.round( Math.random() * 10000 ),
+                    col8: Math.round( Math.random() * 10000 ),
+                    col9: Math.round( Math.random() * 10000 ),
+                    col10: Math.round( Math.random() * 10000 ),
+                    col11: Math.round( Math.random() * 10000 ),
+                    col12: Math.round( Math.random() * 10000 ),
+                    col13: Math.round( Math.random() * 10000 ),
+                    col14: Math.round( Math.random() * 10000 ),
+                    col15: Math.round( Math.random() * 10000 ),
+                    col16: Math.round( Math.random() * 10000 ),
+                    col17: Math.round( Math.random() * 10000 ),
+                    col18: Math.round( Math.random() * 10000 ),
+                    col19: Math.round( Math.random() * 10000 ),
+                    col20: Math.round( Math.random() * 10000 ),
+                    col21: Math.round( Math.random() * 10000 ),
+                    col22: Math.round( Math.random() * 10000 ),
+                    col23: Math.round( Math.random() * 10000 ),
+                    col24: Math.round( Math.random() * 10000 ),
+                    col25: Math.round( Math.random() * 10000 ),
+                    col26: Math.round( Math.random() * 10000 ),
+                    col27: Math.round( Math.random() * 10000 ),
+                    col28: Math.round( Math.random() * 10000 ),
+                    col29: Math.round( Math.random() * 10000 )
                 });
             }
 
@@ -434,14 +444,16 @@ module BsSpread
         {
             this._$sheet.css( { display: "block", overflow: "scroll", width: "100%", height: "200px", position: "relative" });
 
-            this._drawHeaders.call( this );
-            this._drawBody.call( this );
+            this._drawHeaders();
+            this._drawBody();
+
+            //this._recalculateVisibleCells();
         };
 
 
         public _tabToNextCell()
         {
-            if ( this._isTabMode === false )
+            if ( this._isTabMode === false || ( this._isTabMode === true && this._currentCell.columnIndex < this._tabModeStartIndex ) )
             {
                 this._isTabMode = true;
                 this._tabModeStartIndex = this._currentCell.columnIndex;
@@ -461,14 +473,12 @@ module BsSpread
 
             if ( nextCell )
             {
-                this.selectCell( nextCell );
+                this._selectCell( nextCell, false );
             }
         }
 
         public _tabToPreviousCell()
         {
-            this._isTabMode = false;
-
             var previousCell = this._currentCell.row.cells[this._currentCell.columnIndex - 1];
 
             if ( !previousCell )
@@ -483,7 +493,7 @@ module BsSpread
 
             if ( previousCell )
             {
-                this.selectCell( previousCell );
+                this._selectCell( previousCell, false );
             }
         }
 
@@ -503,7 +513,7 @@ module BsSpread
 
             if ( nextRow )
             {
-                this.selectCell( nextRow.cells[colIndex] );
+                this._selectCell( nextRow.cells[colIndex], false );
             }
         }
 
@@ -518,11 +528,21 @@ module BsSpread
                 return;
             }
 
-            this.selectCell( this._cells[row.index][column.index] );
+            this._selectCell( this._cells[row.index][column.index], true );
         }
 
         public selectCell( cell: Cell )
         {
+            this._selectCell( cell, true );
+        }
+
+        private _selectCell( cell: Cell, resetTab: boolean )
+        {
+            if ( resetTab )
+            {
+                this._isTabMode = false;
+            }
+
             this._currentCell = cell;
 
             var topOffset = parseInt( this._$sheetBody.get( 0 ).style.top );
@@ -701,8 +721,46 @@ module BsSpread
             
         }
 
+        private _recalculateVisibleCells(): void
+        {
+            var scrollTop = this.sheetContainer.scrollTop;
+            var scrollBottom = scrollTop + this.sheetContainer.clientHeight;
+
+            var scrollLeft = this.sheetContainer.scrollLeft;
+            var scrollRight = scrollLeft + this.sheetContainer.clientWidth;
+
+            this._workbook._log( scrollTop );
+            this._workbook._log( scrollBottom );
+
+            for ( var i = 0; i < this._rows.length; i++ )
+            {
+                var isNotVisible = ( scrollTop >= this._rows[i].bottom || scrollBottom <= this._rows[i].position );
+                
+                this._rows[i].isCurrentlyVisible = !isNotVisible;
+            }
+
+            for ( var i = 0; i < this._columns.length; i++ )
+            {
+                var isNotVisible = ( scrollLeft >= this._columns[i].right || scrollRight <= this._columns[i].position );
+                
+                this._columns[i].isCurrentlyVisible = !isNotVisible;
+            }
+
+            for ( var x = 0; x < this._cells.length; x++ )
+            {
+                for ( var y = 0; y < this._cells.length; y++ )
+                {
+                    var cell = this._cells[y][x];
+                    var isVisible = cell.column.isCurrentlyVisible && cell.row.isCurrentlyVisible;
+                    
+                    cell.element.style.display = isVisible ? "block" : "none";
+                }
+            }
+        }
+
         private _onScroll(): void
         {
+            //this._recalculateVisibleCells();
             this._workbook.marquee.recalculatePosition();
         }
 
@@ -798,6 +856,9 @@ module BsSpread
          */
         protected _cells: Array<Cell>;
 
+
+        private _isCurrentlyVisible: boolean;
+
         constructor()
         {
             this._index = 0;
@@ -854,6 +915,15 @@ module BsSpread
         {
             return this._position;
         }
+
+        get isCurrentlyVisible(): boolean
+        {
+            return this._isCurrentlyVisible;
+        }
+        set isCurrentlyVisible( val: boolean )
+        {
+            this._isCurrentlyVisible = val;
+        }
     }
 
     export class Column extends RowCol
@@ -894,6 +964,11 @@ module BsSpread
         get width(): number
         {
             return this._width;
+        }
+
+        get right(): number
+        {
+            return this._position + this._width;
         }
     }
 
@@ -945,6 +1020,11 @@ module BsSpread
         {
             return this._height;
         }
+
+        get bottom(): number
+        {
+            return this._position + this._height;
+        }
     }
 
     export class BspreadEvent
@@ -981,10 +1061,29 @@ module BsSpread
 
     export class Cell
     {
+        /**
+         * Holds the value of the cell.
+         */
         private _value: string | number;
-        private _element: Element;
+
+        /**
+         * The html element associated with this cell.
+         */
+        private _element: HTMLElement;
+
+        /**
+         * The sheet this cell is associated with.
+         */
         private _sheet: Spreadsheet;
+
+        /**
+         * The row this cell is in.
+         */
         private _row: Row;
+
+        /**
+         * The column this cell is in.
+         */
         private _column: Column;
 
         constructor( initialValue: string | number, sheet: Spreadsheet, row: Row, column: Column )
@@ -1001,7 +1100,12 @@ module BsSpread
         
         public recreateElement()
         {
-            var newElement = $( "<div class=\"" + this._sheet.workbook.prefix + "-cell\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>" );
+            var newElement = $( "<div class=\"" + this._sheet.workbook.prefix + "-cell " + this._sheet.workbook.prefix + "-row\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>" );
+
+            if ( this._row.index % 2 == 1 )
+            {
+                newElement.addClass( this._sheet.workbook.prefix + "-alt-row" );
+            }
 
             if ( this._element && this._element.parentElement )
             {
@@ -1044,7 +1148,7 @@ module BsSpread
         /**
          * Gets the cell element.
          */
-        get element(): Element
+        get element(): HTMLElement
         {
             return this._element;
         }
@@ -1230,19 +1334,28 @@ module BsSpread
             
             for ( var idx in dataItem )
             {
-                Object.defineProperty( this, idx, {
-                    get: function ()
-                    {
-                        return this._dataItem[idx];
-                    },
-                    set: function ( value )
-                    {
-                        this._dataItem[idx] = value;
-                    },
-                    enumerable: !0,
-                    configurable: !1
-                } );
+                this._defineObservableProperty( idx );
             }
+        }
+
+        /**
+         * Defines a property on the observable that allows the item to be edited and raise events.
+         * @param idx The index of the property/
+         */
+        private _defineObservableProperty( idx: string )
+        {
+            Object.defineProperty( this, idx, {
+                get: function ()
+                {
+                    return this._dataItem[idx];
+                },
+                set: function ( value )
+                {
+                    this._dataItem[idx] = value;
+                },
+                enumerable: !0,
+                configurable: !1
+            });
         }
     }
 
@@ -1581,18 +1694,39 @@ module BsSpread
     /**
      * The standard keyboard event handler.
      */
-    class KeyHandler
+    class InputHandler
     {
+        /**
+         * Holds the associated workbook.
+         */
         private _workbook: Workbook;
 
+        /**
+         * Holds whether or not the shift key is currently pressed.
+         */
+        private _isShiftDown: Boolean;
+
+        /**
+         * Creates a new input handler for the provided workbook.
+         * @param workbook
+         */
         constructor( workbook: Workbook )
         {
             this._workbook = workbook;
+            this._isShiftDown = false;
+
+            this._workbook.selectedSheet.sheetContainer.addEventListener( "keyup", _helpers.proxy( this._onScrollKeyUp, this ) );
+            window.addEventListener( "keydown", _helpers.proxy( this._onKeyDown, this ) );
+            window.addEventListener( "keyup", _helpers.proxy( this._onKeyUp, this ) );
         }
 
-        public onKeyDown( e: KeyboardEvent )
+        /**
+         * Handles when a key is pushed down.
+         * @param e The keyboard event.
+         */
+        private _onKeyDown( e: KeyboardEvent )
         {
-            var isShiftDown = e.shiftKey;
+            this._isShiftDown = e.shiftKey;
             var keyCode = e.keyCode;
 
             this._workbook._log( e );
@@ -1604,7 +1738,7 @@ module BsSpread
                     break;
 
                 case keys.tab:
-                    if ( isShiftDown )
+                    if ( this._isShiftDown )
                     {
                         this._workbook.selectedSheet._tabToPreviousCell();
                     }
@@ -1614,12 +1748,14 @@ module BsSpread
                     }
 
                     this._cancelEvent( e );
+
                     break;
 
                 case keys.upArrow:
                     this._workbook.selectedSheet._selectCellInDirection( new Point( 0, -1 ) );
                     this._cancelEvent( e );
                     break;
+
                 case keys.rightArrow:
                     this._workbook.selectedSheet._selectCellInDirection( new Point( 1, 0 ) );
                     this._cancelEvent( e );
@@ -1638,25 +1774,66 @@ module BsSpread
         }
 
         /**
+         * Handles when a key is lifted up.
+         * @param e The keyboard event.
+         */
+        private _onKeyUp( e: KeyboardEvent )
+        {
+            this._isShiftDown = e.shiftKey;
+        }
+
+        /**
+         * Handles when a key is lifted up inside the scroll container of the spreadsheet.
+         * @param e The keyboard event.
+         */
+        private _onScrollKeyUp( e: KeyboardEvent )
+        {
+            var keyCode = e.keyCode;
+            
+            switch ( keyCode )
+            {
+                // Prevent browser default actions.
+                case keys.tab:
+                case keys.upArrow:
+                case keys.rightArrow:
+                case keys.downArrow:
+                case keys.leftArrow:
+                    this._preventDefault( e );
+                    return false;
+            }
+        }
+
+
+        //private _cellClicked( e: MouseEvent )
+        //{
+        //    this._workbook.selectedSheet.selectCell( this );
+        //}
+
+        /**
          * Cancels the key event by stopping bubbling and preventing default.
          * @param e {KeyboardEvent} The keyboard event to cancel.
          */
         private _cancelEvent( e: KeyboardEvent)
         {
             e.cancelBubble = true;
-            e.returnValue = false;
+            this._preventDefault( e );
+        }
+
+        private _preventDefault( e: KeyboardEvent )
+        {
+            e.preventDefault ? e.preventDefault() : e.returnValue = false;
         }
     }
 
     /**
      * Holds a group of helper functions.
      */
-    export var _helpers = new Helpers();
+    var _helpers = new Helpers();
 
     /**
      * Holds all the key codes for a keydown/keypress/keyup event.
      */
-    export var keys = {
+    var keys = {
         "backspace": 8,
         "tab": 9,
         "enter": 13,

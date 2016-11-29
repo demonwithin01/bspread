@@ -19,7 +19,7 @@ var BsSpread;
          */
         Helpers.prototype.proxy = function (callback, self) {
             return function (evt) {
-                callback.apply(self, [evt]);
+                return callback.apply(self, [evt]);
             };
         };
         /**
@@ -161,15 +161,14 @@ var BsSpread;
             var defaults = new WorkbookOptions();
             this._options = $.extend({}, defaults, options);
             this._container = $(selector);
-            this._keyHandler = new KeyHandler(this);
             this._container.css({ position: "relative" });
             this._sheets = [];
             this._toolsElement = $("<div class=\"" + this._prefix + "-tools\" style=\"position: absolute; top: 2px; right: 2px; bottom: 2px; left: 2px; pointer-events: none;\"></div>");
             this._container.append(this._toolsElement);
             this._marquee = new Marquee(this);
             this._sheets.push(new Spreadsheet(this, 0, options)); // TEMP
-            window.addEventListener("resize", BsSpread._helpers.proxy(this._onResize, this));
-            window.addEventListener("keydown", BsSpread._helpers.proxy(this._keyHandler.onKeyDown, this._keyHandler));
+            this._keyHandler = new InputHandler(this);
+            window.addEventListener("resize", _helpers.proxy(this._onResize, this));
         }
         Workbook.prototype._onResize = function () {
             this._marquee.recalculatePosition();
@@ -268,7 +267,8 @@ var BsSpread;
             this._$sheet.insertBefore(this._workbook.toolsContainer);
             this._isUpdating = true;
             var keys = ["title", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10",
-                "col11", "col12", "col13", "col14", "col15", "col16", "col17", "col18", "col19"];
+                "col11", "col12", "col13", "col14", "col15", "col16", "col17", "col18", "col19", "col20",
+                "col21", "col22", "col23", "col24", "col25", "col26", "col27", "col28", "col29"];
             for (var i = 0; i < keys.length; i++) {
                 var column = new Column();
                 column.index = i;
@@ -276,33 +276,43 @@ var BsSpread;
                 this._columns.push(column);
             }
             var data = [];
-            for (var i = 0; i < 22; i++) {
+            for (var i = 0; i < 122; i++) {
                 data.push({
                     title: "Row: " + (i + 1),
-                    col1: Math.round(Math.random() * 100),
-                    col2: Math.round(Math.random() * 100),
-                    col3: Math.round(Math.random() * 100),
-                    col4: Math.round(Math.random() * 100),
-                    col5: Math.round(Math.random() * 100),
-                    col6: Math.round(Math.random() * 100),
-                    col7: Math.round(Math.random() * 100),
-                    col8: Math.round(Math.random() * 100),
-                    col9: Math.round(Math.random() * 100),
-                    col10: Math.round(Math.random() * 100),
-                    col11: Math.round(Math.random() * 100),
-                    col12: Math.round(Math.random() * 100),
-                    col13: Math.round(Math.random() * 100),
-                    col14: Math.round(Math.random() * 100),
-                    col15: Math.round(Math.random() * 100),
-                    col16: Math.round(Math.random() * 100),
-                    col17: Math.round(Math.random() * 100),
-                    col18: Math.round(Math.random() * 100),
-                    col19: Math.round(Math.random() * 100)
+                    col1: Math.round(Math.random() * 10000),
+                    col2: Math.round(Math.random() * 10000),
+                    col3: Math.round(Math.random() * 10000),
+                    col4: Math.round(Math.random() * 10000),
+                    col5: Math.round(Math.random() * 10000),
+                    col6: Math.round(Math.random() * 10000),
+                    col7: Math.round(Math.random() * 10000),
+                    col8: Math.round(Math.random() * 10000),
+                    col9: Math.round(Math.random() * 10000),
+                    col10: Math.round(Math.random() * 10000),
+                    col11: Math.round(Math.random() * 10000),
+                    col12: Math.round(Math.random() * 10000),
+                    col13: Math.round(Math.random() * 10000),
+                    col14: Math.round(Math.random() * 10000),
+                    col15: Math.round(Math.random() * 10000),
+                    col16: Math.round(Math.random() * 10000),
+                    col17: Math.round(Math.random() * 10000),
+                    col18: Math.round(Math.random() * 10000),
+                    col19: Math.round(Math.random() * 10000),
+                    col20: Math.round(Math.random() * 10000),
+                    col21: Math.round(Math.random() * 10000),
+                    col22: Math.round(Math.random() * 10000),
+                    col23: Math.round(Math.random() * 10000),
+                    col24: Math.round(Math.random() * 10000),
+                    col25: Math.round(Math.random() * 10000),
+                    col26: Math.round(Math.random() * 10000),
+                    col27: Math.round(Math.random() * 10000),
+                    col28: Math.round(Math.random() * 10000),
+                    col29: Math.round(Math.random() * 10000)
                 });
             }
             this.dataSource = data;
             this._createRowData();
-            this._$sheet[0].addEventListener("scroll", BsSpread._helpers.proxy(this._onScroll, this));
+            this._$sheet[0].addEventListener("scroll", _helpers.proxy(this._onScroll, this));
             this.endUpdate();
         }
         /**
@@ -328,12 +338,13 @@ var BsSpread;
         ;
         Spreadsheet.prototype.redraw = function () {
             this._$sheet.css({ display: "block", overflow: "scroll", width: "100%", height: "200px", position: "relative" });
-            this._drawHeaders.call(this);
-            this._drawBody.call(this);
+            this._drawHeaders();
+            this._drawBody();
+            //this._recalculateVisibleCells();
         };
         ;
         Spreadsheet.prototype._tabToNextCell = function () {
-            if (this._isTabMode === false) {
+            if (this._isTabMode === false || (this._isTabMode === true && this._currentCell.columnIndex < this._tabModeStartIndex)) {
                 this._isTabMode = true;
                 this._tabModeStartIndex = this._currentCell.columnIndex;
             }
@@ -345,11 +356,10 @@ var BsSpread;
                 }
             }
             if (nextCell) {
-                this.selectCell(nextCell);
+                this._selectCell(nextCell, false);
             }
         };
         Spreadsheet.prototype._tabToPreviousCell = function () {
-            this._isTabMode = false;
             var previousCell = this._currentCell.row.cells[this._currentCell.columnIndex - 1];
             if (!previousCell) {
                 var previousRow = this._rows[this._currentCell.row.index - 1];
@@ -358,7 +368,7 @@ var BsSpread;
                 }
             }
             if (previousCell) {
-                this.selectCell(previousCell);
+                this._selectCell(previousCell, false);
             }
         };
         Spreadsheet.prototype._enterToNextRow = function () {
@@ -371,7 +381,7 @@ var BsSpread;
             }
             var nextRow = this._rows[this._currentCell.rowIndex + 1];
             if (nextRow) {
-                this.selectCell(nextRow.cells[colIndex]);
+                this._selectCell(nextRow.cells[colIndex], false);
             }
         };
         Spreadsheet.prototype._selectCellInDirection = function (direction) {
@@ -380,19 +390,25 @@ var BsSpread;
             if (row === undefined || column === undefined) {
                 return;
             }
-            this.selectCell(this._cells[row.index][column.index]);
+            this._selectCell(this._cells[row.index][column.index], true);
         };
         Spreadsheet.prototype.selectCell = function (cell) {
+            this._selectCell(cell, true);
+        };
+        Spreadsheet.prototype._selectCell = function (cell, resetTab) {
+            if (resetTab) {
+                this._isTabMode = false;
+            }
             this._currentCell = cell;
             var topOffset = parseInt(this._$sheetBody.get(0).style.top);
             var right = cell.column.position + cell.column.width;
             var bottom = topOffset + cell.row.position + cell.row.height;
             var bodyRight = this.sheetContainer.scrollLeft + this.sheetContainer.clientWidth;
             var bodyBottom = this.sheetContainer.scrollTop + this.sheetContainer.clientHeight;
-            var jumpForwardRow = BsSpread._helpers.getRowsTotalHeight(this, cell.rowIndex + 1, cell.rowIndex + this._workbook.options.scrollRowBufferCount);
-            var jumpBackwardRow = BsSpread._helpers.getRowsTotalHeight(this, cell.rowIndex - 1, cell.rowIndex - this._workbook.options.scrollRowBufferCount);
-            var jumpForwardColumn = BsSpread._helpers.getColumnsTotalWidth(this, cell.columnIndex + 1, cell.columnIndex + this._workbook.options.scrollColumnBufferCount);
-            var jumpBackwardColumn = BsSpread._helpers.getColumnsTotalWidth(this, cell.columnIndex - 1, cell.columnIndex - this._workbook.options.scrollColumnBufferCount);
+            var jumpForwardRow = _helpers.getRowsTotalHeight(this, cell.rowIndex + 1, cell.rowIndex + this._workbook.options.scrollRowBufferCount);
+            var jumpBackwardRow = _helpers.getRowsTotalHeight(this, cell.rowIndex - 1, cell.rowIndex - this._workbook.options.scrollRowBufferCount);
+            var jumpForwardColumn = _helpers.getColumnsTotalWidth(this, cell.columnIndex + 1, cell.columnIndex + this._workbook.options.scrollColumnBufferCount);
+            var jumpBackwardColumn = _helpers.getColumnsTotalWidth(this, cell.columnIndex - 1, cell.columnIndex - this._workbook.options.scrollColumnBufferCount);
             if (bottom + jumpForwardRow > bodyBottom) {
                 var difference = bottom - bodyBottom + jumpForwardRow;
                 this.sheetContainer.scrollTop += difference;
@@ -499,7 +515,31 @@ var BsSpread;
         ;
         Spreadsheet.prototype._onResize = function () {
         };
+        Spreadsheet.prototype._recalculateVisibleCells = function () {
+            var scrollTop = this.sheetContainer.scrollTop;
+            var scrollBottom = scrollTop + this.sheetContainer.clientHeight;
+            var scrollLeft = this.sheetContainer.scrollLeft;
+            var scrollRight = scrollLeft + this.sheetContainer.clientWidth;
+            this._workbook._log(scrollTop);
+            this._workbook._log(scrollBottom);
+            for (var i = 0; i < this._rows.length; i++) {
+                var isNotVisible = (scrollTop >= this._rows[i].bottom || scrollBottom <= this._rows[i].position);
+                this._rows[i].isCurrentlyVisible = !isNotVisible;
+            }
+            for (var i = 0; i < this._columns.length; i++) {
+                var isNotVisible = (scrollLeft >= this._columns[i].right || scrollRight <= this._columns[i].position);
+                this._columns[i].isCurrentlyVisible = !isNotVisible;
+            }
+            for (var x = 0; x < this._cells.length; x++) {
+                for (var y = 0; y < this._cells.length; y++) {
+                    var cell = this._cells[y][x];
+                    var isVisible = cell.column.isCurrentlyVisible && cell.row.isCurrentlyVisible;
+                    cell.element.style.display = isVisible ? "block" : "none";
+                }
+            }
+        };
         Spreadsheet.prototype._onScroll = function () {
+            //this._recalculateVisibleCells();
             this._workbook.marquee.recalculatePosition();
         };
         Object.defineProperty(Spreadsheet.prototype, "sheetContainer", {
@@ -578,7 +618,7 @@ var BsSpread;
              * Sets the data source for the sheet.
              */
             set: function (newSource) {
-                if (BsSpread._helpers.isArray(newSource)) {
+                if (_helpers.isArray(newSource)) {
                     this._dataSource = this._createObservableDataSource(newSource);
                 }
                 else {
@@ -650,6 +690,16 @@ var BsSpread;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(RowCol.prototype, "isCurrentlyVisible", {
+            get: function () {
+                return this._isCurrentlyVisible;
+            },
+            set: function (val) {
+                this._isCurrentlyVisible = val;
+            },
+            enumerable: true,
+            configurable: true
+        });
         return RowCol;
     }());
     var Column = (function (_super) {
@@ -681,6 +731,13 @@ var BsSpread;
              */
             get: function () {
                 return this._width;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Column.prototype, "right", {
+            get: function () {
+                return this._position + this._width;
             },
             enumerable: true,
             configurable: true
@@ -728,6 +785,13 @@ var BsSpread;
             enumerable: true,
             configurable: true
         });
+        Object.defineProperty(Row.prototype, "bottom", {
+            get: function () {
+                return this._position + this._height;
+            },
+            enumerable: true,
+            configurable: true
+        });
         return Row;
     }(RowCol));
     BsSpread.Row = Row;
@@ -763,12 +827,15 @@ var BsSpread;
             this.recreateElement();
         }
         Cell.prototype.recreateElement = function () {
-            var newElement = $("<div class=\"" + this._sheet.workbook.prefix + "-cell\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>");
+            var newElement = $("<div class=\"" + this._sheet.workbook.prefix + "-cell " + this._sheet.workbook.prefix + "-row\" style=\"position: absolute; top: " + this._row.position + "px; left: " + this._column.position + "px; overflow: hidden; width: " + this._column.width + "px; height: " + this._row.height + "px;\">" + this.displayValue + "</div>");
+            if (this._row.index % 2 == 1) {
+                newElement.addClass(this._sheet.workbook.prefix + "-alt-row");
+            }
             if (this._element && this._element.parentElement) {
                 console.log("trigger redraw");
             }
             this._element = newElement.get(0);
-            this._element.addEventListener("click", BsSpread._helpers.proxy(this._cellClicked, this), true);
+            this._element.addEventListener("click", _helpers.proxy(this._cellClicked, this), true);
         };
         Cell.prototype._cellClicked = function (e) {
             this._sheet.selectCell(this);
@@ -932,18 +999,25 @@ var BsSpread;
             this.onDataItemChange = new BspreadEvent();
             this._dataItem = dataItem;
             for (var idx in dataItem) {
-                Object.defineProperty(this, idx, {
-                    get: function () {
-                        return this._dataItem[idx];
-                    },
-                    set: function (value) {
-                        this._dataItem[idx] = value;
-                    },
-                    enumerable: !0,
-                    configurable: !1
-                });
+                this._defineObservableProperty(idx);
             }
         }
+        /**
+         * Defines a property on the observable that allows the item to be edited and raise events.
+         * @param idx The index of the property/
+         */
+        ObservableDataItem.prototype._defineObservableProperty = function (idx) {
+            Object.defineProperty(this, idx, {
+                get: function () {
+                    return this._dataItem[idx];
+                },
+                set: function (value) {
+                    this._dataItem[idx] = value;
+                },
+                enumerable: !0,
+                configurable: !1
+            });
+        };
         return ObservableDataItem;
     }());
     /**
@@ -1212,20 +1286,32 @@ var BsSpread;
     /**
      * The standard keyboard event handler.
      */
-    var KeyHandler = (function () {
-        function KeyHandler(workbook) {
+    var InputHandler = (function () {
+        /**
+         * Creates a new input handler for the provided workbook.
+         * @param workbook
+         */
+        function InputHandler(workbook) {
             this._workbook = workbook;
+            this._isShiftDown = false;
+            this._workbook.selectedSheet.sheetContainer.addEventListener("keyup", _helpers.proxy(this._onScrollKeyUp, this));
+            window.addEventListener("keydown", _helpers.proxy(this._onKeyDown, this));
+            window.addEventListener("keyup", _helpers.proxy(this._onKeyUp, this));
         }
-        KeyHandler.prototype.onKeyDown = function (e) {
-            var isShiftDown = e.shiftKey;
+        /**
+         * Handles when a key is pushed down.
+         * @param e The keyboard event.
+         */
+        InputHandler.prototype._onKeyDown = function (e) {
+            this._isShiftDown = e.shiftKey;
             var keyCode = e.keyCode;
             this._workbook._log(e);
             switch (keyCode) {
-                case BsSpread.keys.enter:
+                case keys.enter:
                     this._workbook.selectedSheet._enterToNextRow();
                     break;
-                case BsSpread.keys.tab:
-                    if (isShiftDown) {
+                case keys.tab:
+                    if (this._isShiftDown) {
                         this._workbook.selectedSheet._tabToPreviousCell();
                     }
                     else {
@@ -1233,42 +1319,73 @@ var BsSpread;
                     }
                     this._cancelEvent(e);
                     break;
-                case BsSpread.keys.upArrow:
+                case keys.upArrow:
                     this._workbook.selectedSheet._selectCellInDirection(new Point(0, -1));
                     this._cancelEvent(e);
                     break;
-                case BsSpread.keys.rightArrow:
+                case keys.rightArrow:
                     this._workbook.selectedSheet._selectCellInDirection(new Point(1, 0));
                     this._cancelEvent(e);
                     break;
-                case BsSpread.keys.downArrow:
+                case keys.downArrow:
                     this._workbook.selectedSheet._selectCellInDirection(new Point(0, 1));
                     this._cancelEvent(e);
                     break;
-                case BsSpread.keys.leftArrow:
+                case keys.leftArrow:
                     this._workbook.selectedSheet._selectCellInDirection(new Point(-1, 0));
                     this._cancelEvent(e);
                     break;
             }
         };
         /**
+         * Handles when a key is lifted up.
+         * @param e The keyboard event.
+         */
+        InputHandler.prototype._onKeyUp = function (e) {
+            this._isShiftDown = e.shiftKey;
+        };
+        /**
+         * Handles when a key is lifted up inside the scroll container of the spreadsheet.
+         * @param e The keyboard event.
+         */
+        InputHandler.prototype._onScrollKeyUp = function (e) {
+            var keyCode = e.keyCode;
+            switch (keyCode) {
+                // Prevent browser default actions.
+                case keys.tab:
+                case keys.upArrow:
+                case keys.rightArrow:
+                case keys.downArrow:
+                case keys.leftArrow:
+                    this._preventDefault(e);
+                    return false;
+            }
+        };
+        //private _cellClicked( e: MouseEvent )
+        //{
+        //    this._workbook.selectedSheet.selectCell( this );
+        //}
+        /**
          * Cancels the key event by stopping bubbling and preventing default.
          * @param e {KeyboardEvent} The keyboard event to cancel.
          */
-        KeyHandler.prototype._cancelEvent = function (e) {
+        InputHandler.prototype._cancelEvent = function (e) {
             e.cancelBubble = true;
-            e.returnValue = false;
+            this._preventDefault(e);
         };
-        return KeyHandler;
+        InputHandler.prototype._preventDefault = function (e) {
+            e.preventDefault ? e.preventDefault() : e.returnValue = false;
+        };
+        return InputHandler;
     }());
     /**
      * Holds a group of helper functions.
      */
-    BsSpread._helpers = new Helpers();
+    var _helpers = new Helpers();
     /**
      * Holds all the key codes for a keydown/keypress/keyup event.
      */
-    BsSpread.keys = {
+    var keys = {
         "backspace": 8,
         "tab": 9,
         "enter": 13,

@@ -131,8 +131,12 @@
   <ItemGroup>
     <Content Include="Content\bootstrap.css" />
     <Content Include="Content\bootstrap.min.css" />
-    <Content Include="Content\bspread.css" />
-    <Content Include="Content\bspread.min.css" />
+    <Content Include="Content\bspread.css">
+      <DependentUpon>bspread.less</DependentUpon>
+    </Content>
+    <Content Include="Content\bspread.min.css">
+      <DependentUpon>bspread.css</DependentUpon>
+    </Content>
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="Global.asax" />
@@ -204,7 +208,7 @@
     <VisualStudio>
       <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
         <WebProjectProperties>
-          <UseIIS>True</UseIIS>
+          <UseIIS>False</UseIIS>
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>50404</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
