@@ -26,7 +26,8 @@
     <UseGlobalApplicationHostFile />
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
-    <TypeScriptToolsVersion>1.8</TypeScriptToolsVersion>
+    <TypeScriptToolsVersion>2.3</TypeScriptToolsVersion>
+    <Use64BitIISExpress />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -156,7 +157,45 @@
     <Content Include="Scripts\modernizr-2.6.2.js" />
     <Content Include="Scripts\respond.js" />
     <Content Include="Scripts\respond.min.js" />
-    <Content Include="Scripts\Spread\spreadsheet.js" />
+    <Content Include="Scripts\Spread\Cell.js">
+      <DependentUpon>Cell.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Column.js">
+      <DependentUpon>Column.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\CSheetEvent.js">
+      <DependentUpon>CSheetEvent.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Formatters.js">
+      <DependentUpon>Formatters.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Helpers.js">
+      <DependentUpon>Helpers.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\InputHandler.js">
+      <DependentUpon>InputHandler.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Marquee.js">
+      <DependentUpon>Marquee.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\ObservableArray.js">
+      <DependentUpon>ObservableArray.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Point.js">
+      <DependentUpon>Point.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Rect.js">
+      <DependentUpon>Rect.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Row.js">
+      <DependentUpon>Row.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\spreadsheet.js">
+      <DependentUpon>Spreadsheet.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Workbook.js">
+      <DependentUpon>Workbook.ts</DependentUpon>
+    </Content>
     <Content Include="Scripts\_references.js" />
     <Content Include="Web.config" />
     <Content Include="Web.Debug.config">
@@ -172,7 +211,45 @@
     <Content Include="Views\Home\About.cshtml" />
     <Content Include="Views\Home\Contact.cshtml" />
     <Content Include="Views\Home\Index.cshtml" />
-    <Content Include="tsconfig.json" />
+    <Content Include="Scripts\Spread\Cell.js.map">
+      <DependentUpon>Cell.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Column.js.map">
+      <DependentUpon>Column.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\CSheetEvent.js.map">
+      <DependentUpon>CSheetEvent.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Formatters.js.map">
+      <DependentUpon>Formatters.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Helpers.js.map">
+      <DependentUpon>Helpers.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\InputHandler.js.map">
+      <DependentUpon>InputHandler.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Marquee.js.map">
+      <DependentUpon>Marquee.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\ObservableArray.js.map">
+      <DependentUpon>ObservableArray.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Point.js.map">
+      <DependentUpon>Point.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Rect.js.map">
+      <DependentUpon>Rect.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Row.js.map">
+      <DependentUpon>Row.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Workbook.js.map">
+      <DependentUpon>Workbook.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\spreadsheet.js.map">
+      <DependentUpon>Spreadsheet.ts</DependentUpon>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
@@ -187,7 +264,20 @@
     <Content Include="Scripts\jquery-1.10.2.min.map" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="Scripts\Spread\spreadsheet.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Cell.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Column.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\CSheetEvent.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Formatters.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Helpers.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\InputHandler.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Marquee.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\ObservableArray.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Point.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Rect.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Renderer.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Row.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Spreadsheet.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Workbook.ts" />
     <TypeScriptCompile Include="Scripts\typings\jquery\jquery.d.ts" />
   </ItemGroup>
   <ItemGroup>

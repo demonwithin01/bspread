@@ -2,8 +2,11 @@
     ViewBag.Title = "Home Page";
 }
 
+<div style="height: 400px;">
+    <canvas id="cSpread"></canvas>
+</div>
 <div id="spreadsheet" class="bspread" style="margin-top: 20px;"></div>
 
 <script>
-    var spread = new BsSpread.Workbook( '#spreadsheet', { debug: true } );
+    var spread = new CSheet.Workbook( '#spreadsheet', { debug: true } );
 </script>

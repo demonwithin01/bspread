@@ -23,6 +23,8 @@ namespace Spreadsheet
                       "~/Scripts/bootstrap.js",
                       "~/Scripts/respond.js" ) );
 
+            bundles.Add( new ScriptBundle( "~/bundles/spreadsheet" ).IncludeDirectory( "~/Scripts/Spread/", "*.js" ) );
+
             bundles.Add( new StyleBundle( "~/Content/css" ).Include(
                       "~/Content/bootstrap.css",
                       "~/Content/bspread.css",
