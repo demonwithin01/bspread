@@ -15,12 +15,21 @@ module CSheet
         private _dataSource: ObservableArray<ObservableDataItem>;
         private _cells: Array<Array<Cell>>;
         private _index: number;
+        private _scrollbar: Scrollbar;
 
         private _bodyDimensions: Point;
 
         private _isTabMode: Boolean;
         private _tabModeStartIndex: number;
         private _currentCell: Cell;
+
+        private _totalWidthChanged: CSheetEvent;
+        private _totalHeightChanged: CSheetEvent;
+
+        private _columnGridLines: Array<number>;
+        private _rowGridLines: Array<number>;
+        private _totalWidth: number;
+        private _totalHeight: number;
 
         constructor( workbook: Workbook, index: number, options: Object )
         {
@@ -38,6 +47,11 @@ module CSheet
             this._rows = new ObservableArray<Row>();
             this._dataSource = new ObservableArray<ObservableDataItem>();
             this._cells = [];
+
+            this._totalWidthChanged = new CSheetEvent();
+            this._totalHeightChanged = new CSheetEvent();
+
+            this._scrollbar = new Scrollbar( this );
 
             //this.columns.addedItem.register( this.columnAdded );
             //this.columns.arrayChanged.register( this.columnsChanged );
@@ -110,6 +124,39 @@ module CSheet
             this._createRowData();
 
             this._$sheet[0].addEventListener( "scroll", helpers.proxy( this._onScroll, this ) );
+
+
+            this._rowGridLines = [];
+            this._columnGridLines = [];
+
+            for ( let i = 0; i < this._rows.length; i++ )
+            {
+                let row = this._rows[i];
+
+                if ( i === 0 )
+                {
+                    this._rowGridLines.push( 0 );
+                }
+
+                this._rowGridLines.push( this._rowGridLines[i] + row.height + 1 );
+            }
+
+            //console.log( this._rowGridLines )
+
+            for ( let i = 0; i < this._columns.length; i++ )
+            {
+                let column = this._columns[i];
+
+                if ( i === 0 )
+                {
+                    this._columnGridLines.push( 0 );
+                }
+
+                this._columnGridLines.push( this._columnGridLines[i] + column.width + 1 );
+            }
+
+            this._recalculateTotalWidth();
+            this._recalculateTotalHeight();
 
             this.endUpdate();
         }
@@ -465,6 +512,36 @@ module CSheet
             this._workbook.marquee.recalculatePosition();
         }
 
+        /**
+         * Recalculates the total width of all the cells.
+         */
+        private _recalculateTotalWidth(): void
+        {
+            let totalWidth = this._columnGridLines[this._columnGridLines.length - 1] + this._columns[this._columns.length - 1].width;
+
+            if ( this._totalWidth !== totalWidth )
+            {
+                this._totalWidthChanged.raise( this, totalWidth );
+            }
+
+            this._totalWidth = totalWidth;
+        }
+
+        /**
+         * Recalculates the total height of all the cells.
+         */
+        private _recalculateTotalHeight(): void
+        {
+            let totalHeight = this._rowGridLines[this._rowGridLines.length - 1] + this._rows[this._rows.length - 1].height;
+
+            if ( this._totalHeight !== totalHeight )
+            {
+                this._totalHeightChanged.raise( this, totalHeight );
+            }
+
+            this._totalHeight = totalHeight;
+        }
+
         get sheetContainer(): HTMLElement
         {
             return this._$sheet.get( 0 );
@@ -488,6 +565,50 @@ module CSheet
         get index(): number
         {
             return this._index;
+        }
+
+        get columnGridLines(): Array<number>
+        {
+            return this._columnGridLines;
+        }
+
+        get rowGridLines(): Array<number>
+        {
+            return this._rowGridLines;
+        }
+
+        get totalCellsWidth(): number
+        {
+            return this._totalWidth;
+        }
+
+        get totalCellsHeight(): number
+        {
+            return this._totalHeight;
+        }
+
+        /**
+         * Gets the scrollbar that is attached to the spreadsheet.
+         */
+        get scrollbar(): Scrollbar
+        {
+            return this._scrollbar;
+        }
+
+        /**
+         * Gets the event handler for when the total width for all the cells is changed.
+         */
+        get totalWidthChanged(): CSheetEvent
+        {
+            return this._totalWidthChanged;
+        }
+
+        /**
+         * Gets the event handler for when the total height for all the cells is changed.
+         */
+        get totalHeightChanged(): CSheetEvent
+        {
+            return this._totalHeightChanged;
         }
 
         /**

@@ -13,6 +13,9 @@ var CSheet;
             this._rows = new CSheet.ObservableArray();
             this._dataSource = new CSheet.ObservableArray();
             this._cells = [];
+            this._totalWidthChanged = new CSheet.CSheetEvent();
+            this._totalHeightChanged = new CSheet.CSheetEvent();
+            this._scrollbar = new CSheet.Scrollbar(this);
             //this.columns.addedItem.register( this.columnAdded );
             //this.columns.arrayChanged.register( this.columnsChanged );
             this._$sheet = $("<div class=\"" + this._workbook.prefix + "-sheet\" style=\"margin: 2px;\"></div>");
@@ -69,6 +72,25 @@ var CSheet;
             this.dataSource = data;
             this._createRowData();
             this._$sheet[0].addEventListener("scroll", CSheet.helpers.proxy(this._onScroll, this));
+            this._rowGridLines = [];
+            this._columnGridLines = [];
+            for (var i_1 = 0; i_1 < this._rows.length; i_1++) {
+                var row = this._rows[i_1];
+                if (i_1 === 0) {
+                    this._rowGridLines.push(0);
+                }
+                this._rowGridLines.push(this._rowGridLines[i_1] + row.height + 1);
+            }
+            //console.log( this._rowGridLines )
+            for (var i_2 = 0; i_2 < this._columns.length; i_2++) {
+                var column_1 = this._columns[i_2];
+                if (i_2 === 0) {
+                    this._columnGridLines.push(0);
+                }
+                this._columnGridLines.push(this._columnGridLines[i_2] + column_1.width + 1);
+            }
+            this._recalculateTotalWidth();
+            this._recalculateTotalHeight();
             this.endUpdate();
         }
         /**
@@ -298,6 +320,26 @@ var CSheet;
             //this._recalculateVisibleCells();
             this._workbook.marquee.recalculatePosition();
         };
+        /**
+         * Recalculates the total width of all the cells.
+         */
+        Spreadsheet.prototype._recalculateTotalWidth = function () {
+            var totalWidth = this._columnGridLines[this._columnGridLines.length - 1] + this._columns[this._columns.length - 1].width;
+            if (this._totalWidth !== totalWidth) {
+                this._totalWidthChanged.raise(this, totalWidth);
+            }
+            this._totalWidth = totalWidth;
+        };
+        /**
+         * Recalculates the total height of all the cells.
+         */
+        Spreadsheet.prototype._recalculateTotalHeight = function () {
+            var totalHeight = this._rowGridLines[this._rowGridLines.length - 1] + this._rows[this._rows.length - 1].height;
+            if (this._totalHeight !== totalHeight) {
+                this._totalHeightChanged.raise(this, totalHeight);
+            }
+            this._totalHeight = totalHeight;
+        };
         Object.defineProperty(Spreadsheet.prototype, "sheetContainer", {
             get: function () {
                 return this._$sheet.get(0);
@@ -329,6 +371,64 @@ var CSheet;
         Object.defineProperty(Spreadsheet.prototype, "index", {
             get: function () {
                 return this._index;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "columnGridLines", {
+            get: function () {
+                return this._columnGridLines;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "rowGridLines", {
+            get: function () {
+                return this._rowGridLines;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "totalCellsWidth", {
+            get: function () {
+                return this._totalWidth;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "totalCellsHeight", {
+            get: function () {
+                return this._totalHeight;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "scrollbar", {
+            /**
+             * Gets the scrollbar that is attached to the spreadsheet.
+             */
+            get: function () {
+                return this._scrollbar;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "totalWidthChanged", {
+            /**
+             * Gets the event handler for when the total width for all the cells is changed.
+             */
+            get: function () {
+                return this._totalWidthChanged;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Spreadsheet.prototype, "totalHeightChanged", {
+            /**
+             * Gets the event handler for when the total height for all the cells is changed.
+             */
+            get: function () {
+                return this._totalHeightChanged;
             },
             enumerable: true,
             configurable: true

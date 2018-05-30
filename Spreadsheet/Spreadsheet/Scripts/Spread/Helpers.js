@@ -140,6 +140,10 @@ var CSheet;
             }
             return width;
         };
+        Helpers.prototype.renderRect = function (context, rect, color) {
+            context.fillStyle = color;
+            context.fillRect(rect.x, rect.y, rect.width, rect.height);
+        };
         /**
          * Resolves a selector string into an array of html elements. Does not support advanced search methods such as descendents.
          * @param selector Supports tags, ids, and class selectors.

@@ -5,14 +5,10 @@
      */
     export class Rect
     {
-        /**
-         * Holds the top left position of the rectangle.
-         */
-        private _position: Point;
-        /**
-         * Holds the dimensions of the rectangle.
-         */
-        private _dimensions: Point;
+        public x: number;
+        public y: number;
+        public width: number;
+        public height: number;
 
         /**
          * Creates a new Rect object with the specified position and dimensions.
@@ -23,8 +19,10 @@
          */
         constructor( x: number, y: number, width: number, height: number )
         {
-            this._position = new Point( x, y );
-            this._dimensions = new Point( width, height );
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
         }
 
         /**
@@ -32,7 +30,7 @@
          */
         get top(): number
         {
-            return this._position.y;
+            return this.y;
         }
 
         /**
@@ -40,23 +38,7 @@
          */
         get left(): number
         {
-            return this._position.x;
-        }
-
-        /**
-         * Gets the width of the rectangle.
-         */
-        get width(): number
-        {
-            return this._dimensions.x;
-        }
-
-        /**
-         * Gets the height of the rectangle.
-         */
-        get height(): number
-        {
-            return this._dimensions.y;
+            return this.x;
         }
 
         /**
@@ -64,7 +46,7 @@
          */
         get bottom(): number
         {
-            return ( this._position.y + this._dimensions.y );
+            return ( this.y + this.height );
         }
 
         /**
@@ -72,7 +54,7 @@
          */
         get right(): number
         {
-            return ( this._position.x + this._dimensions.x );
+            return ( this.x + this.width );
         }
     }
 }

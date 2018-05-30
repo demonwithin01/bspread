@@ -187,8 +187,17 @@
     <Content Include="Scripts\Spread\Rect.js">
       <DependentUpon>Rect.ts</DependentUpon>
     </Content>
+    <Content Include="Scripts\Spread\Renderer.js">
+      <DependentUpon>Renderer.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Renderer.js.map">
+      <DependentUpon>Renderer.ts</DependentUpon>
+    </Content>
     <Content Include="Scripts\Spread\Row.js">
       <DependentUpon>Row.ts</DependentUpon>
+    </Content>
+    <Content Include="Scripts\Spread\Scrollbar.js">
+      <DependentUpon>Scrollbar.ts</DependentUpon>
     </Content>
     <Content Include="Scripts\Spread\spreadsheet.js">
       <DependentUpon>Spreadsheet.ts</DependentUpon>
@@ -250,6 +259,9 @@
     <Content Include="Scripts\Spread\spreadsheet.js.map">
       <DependentUpon>Spreadsheet.ts</DependentUpon>
     </Content>
+    <Content Include="Scripts\Spread\Scrollbar.js.map">
+      <DependentUpon>Scrollbar.ts</DependentUpon>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
@@ -276,6 +288,7 @@
     <TypeScriptCompile Include="Scripts\Spread\Rect.ts" />
     <TypeScriptCompile Include="Scripts\Spread\Renderer.ts" />
     <TypeScriptCompile Include="Scripts\Spread\Row.ts" />
+    <TypeScriptCompile Include="Scripts\Spread\Scrollbar.ts" />
     <TypeScriptCompile Include="Scripts\Spread\Spreadsheet.ts" />
     <TypeScriptCompile Include="Scripts\Spread\Workbook.ts" />
     <TypeScriptCompile Include="Scripts\typings\jquery\jquery.d.ts" />

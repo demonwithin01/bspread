@@ -185,6 +185,12 @@
             return width;
         }
 
+        public renderRect( context: CanvasRenderingContext2D, rect: Rect, color: string ): void
+        {
+            context.fillStyle = color;
+            context.fillRect( rect.x, rect.y, rect.width, rect.height );
+        }
+
         /**
          * Resolves a selector string into an array of html elements. Does not support advanced search methods such as descendents.
          * @param selector Supports tags, ids, and class selectors.

@@ -12,15 +12,17 @@ var CSheet;
          * @param {number} height The height of the rectangle.
          */
         function Rect(x, y, width, height) {
-            this._position = new CSheet.Point(x, y);
-            this._dimensions = new CSheet.Point(width, height);
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
         }
         Object.defineProperty(Rect.prototype, "top", {
             /**
              * Gets the top of the rectangle.
              */
             get: function () {
-                return this._position.y;
+                return this.y;
             },
             enumerable: true,
             configurable: true
@@ -30,27 +32,7 @@ var CSheet;
              * Gets the left of the rectangle.
              */
             get: function () {
-                return this._position.x;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Rect.prototype, "width", {
-            /**
-             * Gets the width of the rectangle.
-             */
-            get: function () {
-                return this._dimensions.x;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Rect.prototype, "height", {
-            /**
-             * Gets the height of the rectangle.
-             */
-            get: function () {
-                return this._dimensions.y;
+                return this.x;
             },
             enumerable: true,
             configurable: true
@@ -60,7 +42,7 @@ var CSheet;
              * Gets the bottom of the rectangle.
              */
             get: function () {
-                return (this._position.y + this._dimensions.y);
+                return (this.y + this.height);
             },
             enumerable: true,
             configurable: true
@@ -70,7 +52,7 @@ var CSheet;
              * Gets the right of the rectangle.
              */
             get: function () {
-                return (this._position.x + this._dimensions.x);
+                return (this.x + this.width);
             },
             enumerable: true,
             configurable: true
